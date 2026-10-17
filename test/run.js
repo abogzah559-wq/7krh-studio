@@ -3,7 +3,7 @@ const assert = require('assert');
 const P = require('../main/pipeline');
 let n = 0; const t = (name, f) => { f(); n++; console.log('ok', name); };
 const caps = { encoders: ['h264_nvenc', 'hevc_nvenc', 'av1_nvenc', 'libx264'], gpu: 0, upBackend: 'ort', tmp: 'C:\\T',
-  paths: { ffmpeg: 'ffmpeg.exe', vspipe: 'vspipe.exe', plugins: { lsmas: 'L.dll', rife: 'R.dll' }, models: { real_x2: 'r2.onnx', real_x4: 'r4.onnx', anime_x2: 'a2.onnx', anime_x4: 'a4.onnx' } } };
+  paths: { ffmpeg: 'ffmpeg.exe', vspipe: 'vspipe.exe', plugins: { lsmas: 'L.dll', rife: 'R.dll', vsort: 'O.dll', vsncnn: 'N.dll' }, models: { real_x2: 'r2.onnx', real_x4: 'r4.onnx', anime_x2: 'a2.onnx', anime_x4: 'a4.onnx' } } };
 const info = { width: 1920, height: 1080, rotation: 0, fps: '30000/1001', duration: 10, hasAudio: true };
 
 t('targetSize landscape/portrait/cap', () => {

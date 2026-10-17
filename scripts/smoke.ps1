@@ -36,5 +36,27 @@ t=time.time()
 s=o.InferenceSession(r'$rt\models\birefnet\birefnet_fp16.onnx', providers=['DmlExecutionProvider','CPUExecutionProvider'])
 print('providers', s.get_providers(), 'inputs', [(i.name,i.shape,i.type) for i in s.get_inputs()], 'outputs', [(i.name,i.shape,i.type) for i in s.get_outputs()], round(time.time()-t,1),'s')
 "@ }
+# AI upscale through the real export pipeline builder (CPU backend here: the runner has no GPU)
+$man = Get-Content "$rt\manifest.json" | ConvertFrom-Json
+Check 'vs-mlrt Real-ESRGAN (CPU) via vspipe' {
+  $v = @"
+import vapoursynth as vs
+core = vs.core
+core.std.LoadPlugin(r'$rt\vs-plugins\LSMASHSource.dll')
+core.std.LoadPlugin(r'$rt\vs-plugins\vsort.dll')
+import vsmlrt
+from vsmlrt import Backend
+c = core.lsmas.LWLibavSource(r'$env:TEMP\t.mp4', cachefile=r'$env:TEMP\t2.lwi')[:3]
+c = core.resize.Bicubic(c, 160, 90, format=vs.RGBS, matrix_in_s='709')
+c = vsmlrt.inference(c, r'$rt\$($man.models.real_x4)', backend=Backend.ORT_CPU(num_streams=1))
+c = core.resize.Bicubic(c, format=vs.YUV420P8, matrix_s='709')
+print('out', c.width, c.height, c.num_frames)
+c.set_output()
+"@
+  Set-Content "$env:TEMP\u.vpy" $v
+  & $vspipe.FullName -c y4m "$env:TEMP\u.vpy" "$env:TEMP\u.y4m"
+  & "$rt\ffmpeg\ffprobe.exe" -v error -show_entries stream=width,height -of csv=p=0 "$env:TEMP\u.y4m"
+}
+Check 'python image upscale model loads (photo x4)' { & $py -c "import onnxruntime as o; s=o.InferenceSession(r'$rt\$($man.models.photo_x4)', providers=['CPUExecutionProvider']); print([(i.name,i.shape) for i in s.get_inputs()])" }
 if ($fail) { Write-Host "$fail smoke test(s) failed" } else { Write-Host 'all smoke tests passed' }
 exit 0

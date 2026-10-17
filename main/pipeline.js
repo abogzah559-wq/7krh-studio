@@ -198,6 +198,7 @@ function vpyScript(p) {
     L.push(`rgb = core.rife.RIFE(rgb, model=${p.fg.model}, factor_num=${p.fg.num}, factor_den=${p.fg.den}, gpu_thread=${p.fg.threads || 2}, uhd=${rgbWide(p) ? 'True' : 'False'}, sc=True${p.gpu >= 0 ? ', gpu_id=' + p.gpu : ''})`);
   }
   if (p.up) {
+    L.push(`_load(r"${p.up.backend === 'ncnn' ? p.plugins.vsncnn : p.plugins.vsort}")`);
     L.push('import vsmlrt');
     L.push('from vsmlrt import Backend');
     const be = p.up.backend === 'ncnn'

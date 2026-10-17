@@ -56,13 +56,13 @@ if (-not (Test-Path "$vs\python.exe")) {
   $wheel = Get-ChildItem "$dl\vsp\wheel" -Filter *.whl | Select-Object -First 1
   if ($wheel) { Expand-7z $wheel.FullName "$vs\Lib\site-packages" }
   $pth = Get-ChildItem $vs -Filter 'python3*._pth' | Select-Object -First 1
-  Add-Content $pth.FullName "`r`nLib\site-packages`r`n..\engine`r`nimport site`r`n"
+  Add-Content $pth.FullName "`r`nLib\site-packages`r`nimport site`r`n"
 }
 
 # ---------------------------------------------------------------- Python packages for the image server (ONNX Runtime DirectML)
 if (-not (Test-Path "$vs\Lib\site-packages\onnxruntime")) {
   & python -m pip install --disable-pip-version-check --no-compile --target "$vs\Lib\site-packages" --only-binary=:all: --python-version 3.12 --platform win_amd64 `
-    'onnxruntime-directml==1.22.0' 'numpy<2.3' 'pillow' 'opencv-python-headless'
+    'onnxruntime-directml==1.22.0' 'numpy<2.3' 'pillow'
   if ($LASTEXITCODE -ne 0) { throw 'pip failed' }
 }
 
@@ -109,10 +109,49 @@ if (-not (Test-Path "$plug\vsort")) {
   Expand-7z $mz.FullName "$rt\models\mlrt" @('models\RealESRGANv2\*', 'models\RealESRGAN\*', '-r')
 }
 
+# ---------------------------------------------------------------- Real-ESRGAN for real footage/photos (BSD-3): PyTorch weights -> ONNX
+$esr = Join-Path $rt 'models\esrgan'
+New-Item -ItemType Directory -Force $esr | Out-Null
+if (-not (Test-Path "$esr\realesr-general-x4v3.onnx") -or -not (Test-Path "$esr\RealESRGAN_x4plus.onnx")) {
+  & python -m pip install --disable-pip-version-check -q torch --index-url https://download.pytorch.org/whl/cpu
+  & python -m pip install --disable-pip-version-check -q onnx
+  Get-Url 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth' "$dl\realesr-general-x4v3.pth"
+  Get-Url 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth' "$dl\RealESRGAN_x4plus.pth"
+  & python "$PSScriptRoot\export_esrgan.py" "$dl\realesr-general-x4v3.pth" compact 4 "$esr\realesr-general-x4v3.onnx"
+  if ($LASTEXITCODE -ne 0) { throw 'export general-x4v3 failed' }
+  & python "$PSScriptRoot\export_esrgan.py" "$dl\RealESRGAN_x4plus.pth" rrdb 4 "$esr\RealESRGAN_x4plus.onnx"
+  if ($LASTEXITCODE -ne 0) { throw 'export x4plus failed' }
+}
+
 # ---------------------------------------------------------------- BiRefNet (background removal), MIT
 $bg = Join-Path $rt 'models\birefnet'
 New-Item -ItemType Directory -Force $bg | Out-Null
 Get-Url 'https://huggingface.co/onnx-community/BiRefNet-ONNX/resolve/main/onnx/model_fp16.onnx' "$bg\birefnet_fp16.onnx"
+
+# ---------------------------------------------------------------- trim what the app never uses
+Remove-Item -Force -ErrorAction SilentlyContinue "$ff\ffplay.exe", "$plug\vsort\onnxruntime_providers_cuda.dll"
+Get-ChildItem $rt -Recurse -Include *.pdb, *.lib | Remove-Item -Force -ErrorAction SilentlyContinue
+Get-ChildItem "$vs\Lib\site-packages" -Directory -Recurse -Filter '__pycache__' | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+Get-ChildItem "$vs\Lib\site-packages" -Directory -Filter 'tests' -Recurse | Where-Object { $_.FullName -match 'numpy|PIL' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+
+# ---------------------------------------------------------------- manifest (paths relative to runtime\)
+function Rel($p) { return $p.Substring($rt.Length + 1) }
+$vspipe = Get-ChildItem $vs -Recurse -Filter 'vspipe.exe' | Select-Object -First 1
+$an = Get-ChildItem "$rt\models\mlrt" -Recurse -Filter '*.onnx'
+$man = [ordered]@{
+  ffmpeg = 'ffmpeg\ffmpeg.exe'; ffprobe = 'ffmpeg\ffprobe.exe'; python = 'vs\python.exe'; vspipe = (Rel $vspipe.FullName)
+  lsmas = 'vs-plugins\LSMASHSource.dll'; rife = 'vs-plugins\librife.dll'; vsort = 'vs-plugins\vsort.dll'; vsncnn = 'vs-plugins\vsncnn.dll'
+  models = [ordered]@{
+    real_x4 = 'models\esrgan\realesr-general-x4v3.onnx'
+    real_x2 = 'models\esrgan\realesr-general-x4v3.onnx'
+    photo_x4 = 'models\esrgan\RealESRGAN_x4plus.onnx'
+    anime_x4 = (Rel ($an | Where-Object Name -eq 'realesr-animevideov3.onnx' | Select-Object -First 1).FullName)
+    anime_x2 = (Rel ($an | Where-Object Name -like '*xsx2.onnx' | Select-Object -First 1).FullName)
+    birefnet = 'models\birefnet\birefnet_fp16.onnx'
+  }
+}
+$man | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 "$rt\manifest.json"
+Get-Content "$rt\manifest.json"
 
 # ---------------------------------------------------------------- report
 Write-Host '--- runtime size by folder (MB)'
