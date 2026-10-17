@@ -234,7 +234,8 @@ function buildPlan(opts, info, caps) {
   const srcFps = parseRate(info.fps) || 30;
   const dur = num(info.duration, 0);
   const start = clamp(num(opts.trim && opts.trim.start, 0), 0, dur || 1e9);
-  const end = clamp(num(opts.trim && opts.trim.end, dur), start + 0.04, dur || 1e9);
+  let end = clamp(num(opts.trim && opts.trim.end, dur), start + 0.04, dur || 1e9);
+  if (opts.preview) end = Math.min(dur || 1e9, start + 4 / srcFps);
   const speed = clamp(num(opts.speed, 1), 0.25, 4);
   const segDur = (end - start) / speed;
 
@@ -357,6 +358,17 @@ function buildPlan(opts, info, caps) {
   ff.push('-t', segDur.toFixed(3), '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709');
   ff.push('-movflags', '+faststart', '-map_metadata', '-1', '-metadata', 'encoder=7krh Studio');
 
+  if (opts.preview) {
+    // single still through exactly the same chain (no audio, PNG)
+    const pf = [P.ffmpeg, '-hide_banner', '-nostdin', '-y', '-loglevel', 'error'];
+    if (enhance) { const [rn, rd] = fraction(fpsBeforeSpeed); pf.push('-f', 'yuv4mpegpipe', '-r', `${rn}/${rd}`, '-i', 'pipe:0'); }
+    else pf.push('-ss', start.toFixed(3), '-i', opts.input);
+    const pvf = vf.filter(f => !/^setpts|^fps=|^format=/.test(f));
+    if (pvf.length) pf.push('-vf', pvf.join(','));
+    pf.push('-frames:v', '1', opts.outPath);
+    return { steps: [enhance ? { kind: 'pipe', vpy, vspipe: [P.vspipe, '-c', 'y4m', '-e', '0', '{VPY}', '-'], ffmpeg: pf } : { kind: 'ffmpeg', ffmpeg: pf }],
+      enhance, preview: true, expect: { frames: 1, fps: outFps, w: W, h: H, dur: 0, kfactor: 1, finalDur: 0 } };
+  }
   const platform = opts.platform || 'self';
   const needKrypton = platform === 'tiktok';
   const encOut = needKrypton ? caps.tmp + '\\encoded.mp4' : opts.outPath;

@@ -2,7 +2,7 @@
   "name": "7krh-studio",
   "productName": "7krh Studio",
   "version": "0.1.0",
-  "description": "7krh Studio — AI video & image enhancer, frame generation, background removal and platform export.",
+  "description": "7krh Studio \u2014 AI video & image enhancer, frame generation, background removal and platform export.",
   "author": "7krh",
   "license": "MIT",
   "main": "main/main.js",
@@ -13,21 +13,44 @@
     "dist": "electron-builder --win --x64 --publish never"
   },
   "devDependencies": {
-    "electron": "38.2.0",
-    "electron-builder": "26.0.12"
+    "electron": "^38.2.0",
+    "electron-builder": "^26.0.12"
   },
   "build": {
     "appId": "dev.7krh.studio",
     "productName": "7krh Studio",
-    "copyright": "© 2026 7krh",
+    "copyright": "\u00a9 2026 7krh",
     "artifactName": "7krh-Studio-Setup-${version}.${ext}",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main/**", "ui/**", "engine/**", "package.json"],
-    "extraResources": [{ "from": "runtime", "to": "runtime", "filter": ["**/*"] }],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main/**",
+      "ui/**",
+      "engine/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "runtime",
+        "to": "runtime",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "asar": true,
     "compression": "normal",
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.ico",
       "requestedExecutionLevel": "asInvoker"
     },
@@ -47,13 +70,19 @@
       "uninstallerSidebar": "build/sidebar.bmp",
       "installerHeader": "build/header.bmp",
       "multiLanguageInstaller": true,
-      "installerLanguages": ["en_US", "ar_SA"],
+      "installerLanguages": [
+        "en_US",
+        "ar_SA"
+      ],
       "displayLanguageSelector": true,
       "language": "1025",
       "include": "build/installer.nsh",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "differentialPackage": false
-    }
+    },
+    "asarUnpack": [
+      "engine/**"
+    ]
   }
 }

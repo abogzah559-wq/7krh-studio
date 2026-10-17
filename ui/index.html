@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: file:; media-src 'self' file: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' file: data: blob:">
+<title>7krh Studio</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 5v14M17 5v14M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4"/><path d="m10.5 9.5 3.5 2.5-3.5 2.5z" fill="currentColor"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="9.5" r="1.8"/><path d="m4 18 5.5-5.5 3.5 3.5 2.5-2.5L20 18"/><path d="M17 2.5v3M15.5 4h3"/></symbol>
+    <symbol id="i-cut" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5" stroke-dasharray="2.4 2.4"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19c.8-3 3-4.6 5.5-4.6s4.7 1.6 5.5 4.6"/></symbol>
+    <symbol id="i-queue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11M7.5 9.5 12 14l4.5-4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12-7.5z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4.5" width="4.2" height="15" rx="1"/><rect x="13.8" y="4.5" width="4.2" height="15" rx="1"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6 9 12l6 6"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.2 6.3 6.3 2.2-6.3 2.2L12 19.5l-2.2-6.3L3.5 11l6.3-2.2z"/><path d="M19 15.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h5l2 2h8A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-3.6 4-5.5 7.5-5.5s6.3 1.9 7.5 5.5"/></symbol>
+    <symbol id="i-tiktok" viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 3c.4 2.2 1.9 3.8 4.1 4v3.1c-1.5 0-2.9-.4-4.1-1.2v6.4c0 3.3-2.7 5.7-5.9 5.7S4.8 18.6 4.8 15.4c0-3.4 2.9-6 6.4-5.7v3.2c-1.6-.4-3.2.8-3.2 2.4 0 1.4 1.1 2.5 2.6 2.5 1.6 0 2.7-1.1 2.7-2.9V3z"/></symbol>
+    <symbol id="i-insta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-yt" viewBox="0 0 24 24" fill="currentColor"><path d="M21.6 7.2a2.6 2.6 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4a2.6 2.6 0 0 0-1.8 1.8C2 8.8 2 12 2 12s0 3.2.4 4.8a2.6 2.6 0 0 0 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.6 2.6 0 0 0 1.8-1.8c.4-1.6.4-4.8.4-4.8s0-3.2-.4-4.8zM10 15V9l5.2 3z"/></symbol>
+  </defs>
+</svg>
+
+<header class="titlebar">
+  <div class="brand"><img src="img/logo-128.png" alt=""><span>7krh Studio</span><small id="ver"></small></div>
+  <span class="crumb" id="crumb"></span>
+</header>
+
+<div class="app">
+  <aside class="side">
+    <div class="nav on" data-v="home"><svg><use href="#i-home"/></svg><span data-i="nav_home"></span></div>
+    <div class="nav" data-v="edit"><svg><use href="#i-film"/></svg><span data-i="nav_edit"></span></div>
+    <div class="nav" data-v="images"><svg><use href="#i-image"/></svg><span data-i="nav_images"></span></div>
+    <div class="nav" data-v="bg"><svg><use href="#i-cut"/></svg><span data-i="nav_bg"></span></div>
+    <div class="nav" data-v="queue"><svg><use href="#i-queue"/></svg><span data-i="nav_queue"></span><span class="badge" id="qBadge" hidden>0</span></div>
+    <div class="sp"></div>
+    <div class="nav" data-v="settings"><svg><use href="#i-gear"/></svg><span data-i="nav_settings"></span></div>
+    <div class="hwmini" id="hwMini"><span class="dot"></span><span id="hwMiniTxt" data-i="gpu_detecting"></span></div>
+  </aside>
+
+  <main class="main">
+    <!-- HOME -->
+    <section class="view" id="v-home">
+      <div class="home">
+        <div>
+          <div class="hero">
+            <h1 class="h1" data-i="home_hello"></h1>
+            <p class="lead" data-i="home_sub"></p>
+            <div class="drop" id="homeDrop">
+              <svg><use href="#i-upload"/></svg>
+              <strong data-i="home_drop"></strong>
+              <span data-i="home_drop_sub"></span>
+            </div>
+          </div>
+          <div class="cards">
+            <div class="card" data-go="edit"><div class="ic"><svg><use href="#i-film"/></svg></div><b data-i="card_enh"></b><p data-i="card_enh_sub"></p></div>
+            <div class="card" data-go="images"><div class="ic"><svg><use href="#i-image"/></svg></div><b data-i="card_img"></b><p data-i="card_img_sub"></p></div>
+            <div class="card" data-go="bg"><div class="ic"><svg><use href="#i-cut"/></svg></div><b data-i="card_bg"></b><p data-i="card_bg_sub"></p></div>
+          </div>
+        </div>
+        <div class="panel hw">
+          <h3 data-i="hw_title"></h3>
+          <div class="gpu"><div class="chipico" id="gpuIco">GPU</div><div><b id="gpuName">—</b><small id="gpuSub"></small></div></div>
+          <div class="kv">
+            <span data-i="hw_enc"></span><b id="hwEnc">—</b>
+            <span data-i="hw_cpu"></span><b id="hwCpu">—</b>
+            <span data-i="hw_ram"></span><b id="hwRam">—</b>
+          </div>
+          <div class="hint warn" id="rtBad" hidden data-i="hw_rt_bad"></div>
+          <div class="bench" id="benchBox" hidden></div>
+          <button class="btn sm" id="benchBtn" style="margin-top:14px;width:100%"><svg><use href="#i-spark"/></svg><span data-i="hw_bench"></span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIDEO STUDIO -->
+    <section class="view full" id="v-edit" hidden>
+      <div class="editor">
+        <div class="stage">
+          <div class="ehead">
+            <span class="name" id="eName"></span>
+            <div class="tags" id="eTags"></div>
+            <span class="sp"></span>
+            <button class="btn sm" id="eOpen"><svg><use href="#i-folder"/></svg><span data-i="open_video"></span></button>
+          </div>
+          <div class="player" id="player">
+            <div class="empty" id="eEmpty"><svg><use href="#i-film"/></svg><strong data-i="home_drop"></strong><button class="btn primary" id="eOpen2" data-i="open_video"></button></div>
+            <video id="vid" hidden preload="auto" playsinline></video>
+            <div class="cmp" id="cmp" hidden><canvas id="cmpCv"></canvas><span class="lbl2 l" data-i="before"></span><span class="lbl2 r" data-i="after"></span><button class="icbtn pclose" id="cmpClose"><svg><use href="#i-x"/></svg></button></div>
+            <div class="busy" id="pBusy" hidden><div class="spin"></div><span id="pBusyTxt"></span></div>
+          </div>
+          <div class="transport">
+            <button class="icbtn" id="tPrev" title="-1 frame"><svg><use href="#i-prev"/></svg></button>
+            <button class="icbtn" id="tPlay"><svg><use href="#i-play"/></svg></button>
+            <button class="icbtn" id="tNext" title="+1 frame"><svg><use href="#i-next"/></svg></button>
+            <span class="time" id="tTime">0:00.00 / 0:00.00</span>
+            <span class="sp"></span>
+            <button class="btn sm ai" id="aiPrev"><svg><use href="#i-spark"/></svg><span data-i="ai_preview"></span></button>
+          </div>
+          <div class="timeline">
+            <div class="tl" id="tl"><div class="thumbs" id="thumbs"></div><div class="shade" id="shL"></div><div class="shade" id="shR"></div><div class="sel" id="tsel"></div><div class="h" id="hIn"></div><div class="h" id="hOut"></div><div class="ph" id="ph"></div></div>
+            <div class="alane" id="alane" hidden><svg><use href="#i-music"/></svg><span id="alaneTxt"></span></div>
+          </div>
+        </div>
+        <div class="insp">
+          <div class="tabs"><button data-t="edit" class="on" data-i="tab_edit"></button><button data-t="ai" data-i="tab_ai"></button><button data-t="export" data-i="tab_export"></button></div>
+          <div class="ipane" id="p-edit">
+            <div class="sect"><h4 data-i="trim"></h4>
+              <div class="two"><div class="field"><label data-i="t_in"></label><input type="number" id="tIn" step="0.01" min="0"></div><div class="field"><label data-i="t_out"></label><input type="number" id="tOut" step="0.01" min="0"></div></div>
+              <div class="two" style="margin-top:10px"><button class="btn sm" id="setIn" data-i="set_in"></button><button class="btn sm" id="setOut" data-i="set_out"></button></div>
+              <div class="hint"><span data-i="length"></span>: <b id="tLen" style="direction:ltr;display:inline-block">—</b></div>
+            </div>
+            <div class="sect"><h4 data-i="speed"></h4>
+              <div class="seg" id="speedSeg" style="margin-top:10px"><button data-v="0.5">0.5×</button><button data-v="0.75">0.75×</button><button data-v="1" class="on">1×</button><button data-v="1.5">1.5×</button><button data-v="2">2×</button></div>
+            </div>
+            <div class="sect"><h4 data-i="crop"></h4>
+              <div class="seg" id="cropSeg" style="margin-top:10px"><button data-v="none" class="on" data-i="crop_none"></button><button data-v="9:16">9:16</button><button data-v="1:1">1:1</button><button data-v="4:5">4:5</button><button data-v="16:9">16:9</button></div>
+            </div>
+            <div class="sect"><h4><span data-i="adjust"></span><button class="btn sm ghost" id="adjReset" data-i="reset"></button></h4>
+              <div class="field"><div class="lbl"><span data-i="bright"></span><b id="v-brightness">0</b></div><input type="range" min="-100" max="100" value="0" data-adj="brightness"></div>
+              <div class="field"><div class="lbl"><span data-i="contrast"></span><b id="v-contrast">0</b></div><input type="range" min="-100" max="100" value="0" data-adj="contrast"></div>
+              <div class="field"><div class="lbl"><span data-i="sat"></span><b id="v-saturation">0</b></div><input type="range" min="-100" max="100" value="0" data-adj="saturation"></div>
+              <div class="field"><div class="lbl"><span data-i="sharpen"></span><b id="v-sharpen">0</b></div><input type="range" min="0" max="100" value="0" data-adj="sharpen"></div>
+            </div>
+            <div class="sect"><h4 data-i="audio"></h4>
+              <div class="seg" id="audSeg" style="margin-top:10px;grid-auto-flow:row;grid-template-columns:1fr 1fr"><button data-v="keep" class="on" data-i="a_keep"></button><button data-v="mute" data-i="a_mute"></button><button data-v="replace" data-i="a_replace"></button><button data-v="mix" data-i="a_mix"></button></div>
+              <div id="musicBox" hidden>
+                <button class="btn sm" id="musicPick" style="margin-top:10px;width:100%"><svg><use href="#i-music"/></svg><span id="musicName" data-i="a_pick"></span></button>
+                <div class="field"><div class="lbl"><span data-i="a_mvol"></span><b id="v-mvol">100%</b></div><input type="range" min="0" max="200" value="100" id="mvol"></div>
+                <div class="field"><label data-i="a_mstart"></label><input type="number" id="mstart" min="0" step="0.1" value="0"></div>
+              </div>
+              <div class="field" id="volBox"><div class="lbl"><span data-i="a_vol"></span><b id="v-vol">100%</b></div><input type="range" min="0" max="200" value="100" id="vol"></div>
+            </div>
+          </div>
+          <div class="ipane" id="p-ai" hidden>
+            <div class="sect ai">
+              <label class="toggle"><input type="checkbox" id="upOn"><span class="sw"></span><span><b data-i="ai_up"></b><small data-i="ai_up_sub"></small></span></label>
+              <div class="field"><label data-i="ai_model"></label><div class="seg" id="upModel"><button data-v="real" class="on" data-i="m_real"></button><button data-v="anime" data-i="m_anime"></button></div></div>
+            </div>
+            <div class="sect ai">
+              <label class="toggle"><input type="checkbox" id="fgOn"><span class="sw"></span><span><b data-i="ai_fg"></b><small data-i="ai_fg_sub"></small></span></label>
+              <div class="field"><label data-i="fg_model"></label><div class="seg" id="fgModel"><button data-v="4.6" data-i="fg_fast"></button><button data-v="4.26" class="on" data-i="fg_best"></button></div></div>
+            </div>
+            <div class="hint" id="aiHint"></div>
+          </div>
+          <div class="ipane" id="p-export" hidden>
+            <div class="sect">
+              <div class="field" style="margin-top:0"><label data-i="res"></label><div class="seg" id="resSeg"><button data-v="source" class="on" data-i="res_src"></button><button data-v="1080">1080p</button><button data-v="1440">2K</button><button data-v="2160">4K</button></div></div>
+              <div class="field"><label data-i="fps"></label><div class="seg" id="fpsSeg"><button data-v="source" class="on" data-i="fps_src"></button><button data-v="30">30</button><button data-v="60">60</button><button data-v="120">120</button></div></div>
+              <div class="hint warn" id="fpsHint" hidden data-i="fps_hint_dup"></div>
+              <div class="two">
+                <div class="field"><label data-i="codec"></label><select id="codec"><option value="hevc">HEVC (H.265)</option><option value="h264">H.264</option><option value="av1">AV1</option></select></div>
+                <div class="field"><label data-i="quality"></label><select id="quality"><option value="balanced" data-i="q_bal"></option><option value="high" data-i="q_high" selected></option><option value="max" data-i="q_max"></option></select></div>
+              </div>
+              <label class="toggle" style="margin-top:14px"><input type="checkbox" id="tenBit"><span class="sw"></span><span><small data-i="tenbit" style="margin-top:3px"></small></span></label>
+            </div>
+            <div class="sect">
+              <h4 data-i="platform"></h4>
+              <div class="plats" id="plats" style="margin-top:10px">
+                <button class="plat on" data-p="self"><svg><use href="#i-user"/></svg><span data-i="p_self"></span></button>
+                <button class="plat" data-p="tiktok"><svg><use href="#i-tiktok"/></svg><span data-i="p_tiktok"></span></button>
+                <button class="plat" data-p="instagram"><svg><use href="#i-insta"/></svg><span data-i="p_instagram"></span></button>
+                <button class="plat" data-p="youtube"><svg><use href="#i-yt"/></svg><span data-i="p_youtube"></span></button>
+              </div>
+              <div class="hint" id="platHint"></div>
+            </div>
+          </div>
+          <div class="ifoot">
+            <div class="kv">
+              <span data-i="o_res"></span><b id="oRes">—</b>
+              <span data-i="o_fps"></span><b id="oFps">—</b>
+              <span data-i="o_dur"></span><b id="oDur">—</b>
+              <span data-i="o_enc"></span><b id="oEnc">—</b>
+            </div>
+            <button class="btn primary lg" id="exportBtn" style="width:100%" disabled><svg><use href="#i-queue"/></svg><span data-i="export"></span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- IMAGE UPSCALE -->
+    <section class="view full" id="v-images" hidden>
+      <div class="split">
+        <div class="flist">
+          <div class="top"><button class="btn sm primary" id="imgAdd"><svg><use href="#i-upload"/></svg><span data-i="img_add"></span></button><button class="btn sm ghost" id="imgClear" data-i="img_clear"></button></div>
+          <div class="items" id="imgList"></div>
+        </div>
+        <div class="canvasWrap">
+          <div class="cv" id="imgCv"><div class="empty" id="imgEmpty"><svg><use href="#i-image"/></svg><strong data-i="img_drop"></strong></div><canvas id="imgCanvas" hidden></canvas><span class="lbl2" style="position:absolute;top:12px;left:12px;font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px;background:rgba(0,0,0,.6)" id="imgLbl" hidden></span><div class="busy" id="imgBusy" hidden><div class="spin"></div><span id="imgBusyTxt"></span></div></div>
+        </div>
+        <div class="rpane">
+          <div class="field" style="margin-top:0"><label data-i="img_model"></label><div class="seg" id="imgModel" style="grid-auto-flow:row"><button data-v="photo" class="on" data-i="img_photo"></button><button data-v="real" data-i="img_real"></button><button data-v="anime" data-i="img_anime"></button></div></div>
+          <div class="field"><label data-i="img_scale"></label><div class="seg" id="imgScale"><button data-v="2">×2</button><button data-v="4" class="on">×4</button></div></div>
+          <div class="field"><label data-i="img_fmt"></label><div class="seg" id="imgFmt"><button data-v="png" class="on">PNG</button><button data-v="jpg">JPG</button><button data-v="webp">WebP</button></div></div>
+          <div class="sep"></div>
+          <button class="btn primary lg" id="imgGo" style="width:100%" disabled><svg><use href="#i-spark"/></svg><span data-i="img_go"></span></button>
+          <div class="hint" id="imgHint"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BACKGROUND REMOVER -->
+    <section class="view full" id="v-bg" hidden>
+      <div class="split">
+        <div class="flist">
+          <div class="top"><button class="btn sm primary" id="bgAdd"><svg><use href="#i-upload"/></svg><span data-i="bg_add"></span></button><button class="btn sm ghost" id="bgClearList" data-i="img_clear"></button></div>
+          <div class="items" id="bgList"></div>
+        </div>
+        <div class="canvasWrap">
+          <div class="cv" id="bgCv"><div class="empty" id="bgEmpty"><svg><use href="#i-cut"/></svg><strong data-i="bg_drop"></strong></div><canvas id="bgCanvas" hidden></canvas><div class="cur" id="bgCur" hidden></div><div class="busy" id="bgBusy" hidden><div class="spin"></div><span data-i="bg_working"></span></div></div>
+          <div class="cvbar">
+            <button class="btn sm mbtn on" data-m="view" data-i="bg_view"></button>
+            <button class="btn sm mbtn" data-m="keep" data-i="bg_keep"></button>
+            <button class="btn sm mbtn" data-m="erase" data-i="bg_erase"></button>
+            <span id="brushBox" hidden style="display:flex;align-items:center;gap:8px"><span data-i="bg_brush" style="color:var(--mute);font-size:12.5px"></span><input type="range" id="bgSize" min="4" max="160" value="40" style="width:140px"></span>
+            <span class="sp"></span>
+            <button class="btn sm" id="bgUndo" disabled data-i="bg_undo"></button>
+            <button class="btn sm ghost" id="bgClearEd" disabled data-i="bg_clearEd"></button>
+          </div>
+          <div class="hint" id="bgHint" style="padding:0 14px 10px;margin:0"></div>
+        </div>
+        <div class="rpane">
+          <div class="field" style="margin-top:0"><label data-i="bg_bg"></label><div class="seg" id="bgMode" style="grid-auto-flow:row;grid-template-columns:1fr 1fr"><button data-v="none" class="on" data-i="bg_none"></button><button data-v="color" data-i="bg_color"></button><button data-v="blur" data-i="bg_blur"></button><button data-v="image" data-i="bg_image"></button></div></div>
+          <div id="bgColorBox" hidden><div class="pal" id="bgPal"></div></div>
+          <div class="field" id="bgBlurBox" hidden><div class="lbl"><span data-i="bg_blurL"></span><b id="v-blur">45</b></div><input type="range" id="bgBlur" min="1" max="100" value="45"></div>
+          <div id="bgImgBox" hidden><button class="btn sm" id="bgPickImg" style="margin-top:10px;width:100%" data-i="bg_pick"></button></div>
+          <div class="sep"></div>
+          <div class="lbl" style="margin-bottom:4px"><span data-i="bg_edges"></span></div>
+          <div class="field"><div class="lbl"><span data-i="bg_sharp"></span><b id="v-sharp">0</b></div><input type="range" id="bgSharp" min="0" max="100" value="0"></div>
+          <div class="field"><div class="lbl"><span data-i="bg_clean"></span><b id="v-clean">10</b></div><input type="range" id="bgClean" min="0" max="100" value="10"></div>
+          <div class="sep"></div>
+          <label class="toggle"><input type="checkbox" id="bgCrop"><span class="sw"></span><span><b data-i="bg_crop" style="font-size:13.5px"></b></span></label>
+          <div class="field"><label data-i="img_fmt"></label><div class="seg" id="bgFmt"><button data-v="png" class="on">PNG</button><button data-v="webp">WebP</button><button data-v="jpg">JPG</button></div></div>
+          <div class="two" style="margin-top:16px"><button class="btn primary" id="bgSave" disabled data-i="bg_save"></button><button class="btn" id="bgSaveAll" disabled data-i="bg_saveAll"></button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EXPORTS -->
+    <section class="view" id="v-queue" hidden>
+      <h1 class="h1" data-i="nav_queue"></h1>
+      <div class="qlist" id="qlist"><div class="hint" id="qEmpty" data-i="q_empty"></div></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="v-settings" hidden>
+      <div class="settings">
+        <h1 class="h1" data-i="s_title"></h1>
+        <div class="srow"><div><b data-i="s_lang"></b></div><div class="seg" id="sLang"><button data-v="ar">العربية</button><button data-v="en">English</button></div></div>
+        <div class="srow"><div><b data-i="s_out"></b></div><div class="out-path"><input type="text" id="sOut" readonly><button class="btn sm" id="sOutBtn"><svg><use href="#i-folder"/></svg></button></div></div>
+        <div class="srow"><div><b data-i="s_gpu"></b></div><select id="sGpu"></select></div>
+        <div class="srow"><div><b data-i="s_backend"></b></div><select id="sBackend"><option value="auto" data-i="s_auto"></option><option value="ort" data-i="s_dml"></option><option value="ncnn" data-i="s_vk"></option></select></div>
+        <div class="srow"><div><b data-i="s_diag"></b><small data-i="s_diag_sub"></small></div><div><button class="btn" id="sDiag"><svg><use href="#i-spark"/></svg><span data-i="s_diag_run"></span></button><div class="hint" id="sDiagOut" style="user-select:text"></div></div></div>
+        <div class="srow"><div><b data-i="s_about"></b></div><div><span id="sAbout"></span> · <a href="#" id="sSite" style="color:var(--pink)" data-i="s_site"></a></div></div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toasts" id="toasts"></div>
+<div class="dropveil" id="dropVeil" hidden data-i="drop_here"></div>
+
+<script src="i18n.js"></script>
+<script src="mock.js"></script>
+<script src="app.js"></script>
+<script src="editor.js"></script>
+<script src="images.js"></script>
+<script src="cutout.js"></script>
+</body>
+</html>

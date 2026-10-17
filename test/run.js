@@ -54,4 +54,10 @@ t('portrait rotated phone video to 1080 + crop 9:16 no-op', () => {
 t('no NVIDIA -> software fallback', () => {
   const e = P.pickEncoder('hevc', { encoders: [] }, true); assert.strictEqual(e.name, 'libx265');
 });
+t('AI preview frame: vspipe first frame -> png', () => {
+  const pl = P.buildPlan({ input: 'in.mp4', outPath: 'p.png', preview: true, trim: { start: 5 }, enhance: { upscale: { on: true, model: 'anime' } }, output: { res: '2160' } }, info, caps);
+  assert.strictEqual(pl.steps.length, 1); assert(pl.preview);
+  const a = pl.steps[0].ffmpeg.join(' '); assert(a.endsWith('-frames:v 1 p.png') && !a.includes('aac'), a);
+  assert(pl.steps[0].vpy.includes('a2.onnx'), 'anime x2 model for 1080->4K');
+});
 console.log(n, 'tests passed');
