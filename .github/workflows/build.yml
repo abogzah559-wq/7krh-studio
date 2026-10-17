@@ -39,22 +39,24 @@ jobs:
 
       - name: Assemble runtime
         shell: pwsh
-        run: ./scripts/fetch-runtime.ps1
+        run: |
+          New-Item -ItemType Directory -Force ci-logs | Out-Null
+          ./scripts/fetch-runtime.ps1 *>&1 | Tee-Object -FilePath ci-logs/1-runtime.txt
+          if (-not $?) { exit 1 }
 
       - name: Engine smoke tests
         shell: pwsh
-        run: ./scripts/smoke.ps1
+        run: ./scripts/smoke.ps1 *>&1 | Tee-Object -FilePath ci-logs/2-smoke.txt
 
       - name: Unit tests (pipeline builder)
-        run: node test/run.js
+        shell: pwsh
+        run: node test/run.js *>&1 | Tee-Object -FilePath ci-logs/3-tests.txt
 
       - name: Build installer
         if: ${{ hashFiles('build/installer.nsh') != '' }}
         shell: pwsh
         run: |
-          npm install --no-audit --no-fund
-          npx electron-builder --win --x64 --publish never
-          Get-ChildItem dist -File | ForEach-Object { '{0,10:N1} MB  {1}' -f ($_.Length/1MB), $_.Name }
+          & { npm install --no-audit --no-fund; npx electron-builder --win --x64 --publish never; Get-ChildItem dist -File | ForEach-Object { '{0,10:N1} MB  {1}' -f ($_.Length/1MB), $_.Name } } *>&1 | Tee-Object -FilePath ci-logs/4-build.txt
 
       - name: Upload installer
         if: ${{ hashFiles('build/installer.nsh') != '' }}
@@ -79,3 +81,13 @@ jobs:
         run: |
           f=$(ls dist/*.exe | head -1)
           gh release create "${GITHUB_REF_NAME}" "$f" --title "7krh Studio ${GITHUB_REF_NAME}" --notes-file RELEASE_NOTES.md
+
+      - name: Save logs to the ci-logs branch
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p ci-logs && cd ci-logs
+          echo "run ${GITHUB_RUN_ID} sha ${GITHUB_SHA} ref ${GITHUB_REF} status ${{ job.status }}" > 0-run.txt
+          git init -q -b ci-logs && git add -A
+          git -c user.name=ci -c user.email=ci@7krh.dev commit -q -m "logs ${GITHUB_RUN_ID}"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" ci-logs
