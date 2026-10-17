@@ -1,0 +1,81 @@
+name: build
+
+on:
+  push:
+    branches: [main, dev]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Cache runtime (engines + models)
+        id: rtcache
+        uses: actions/cache@v4
+        with:
+          path: runtime
+          key: runtime-${{ hashFiles('scripts/fetch-runtime.ps1') }}
+
+      - name: Assemble runtime
+        shell: pwsh
+        run: ./scripts/fetch-runtime.ps1
+
+      - name: Engine smoke tests
+        shell: pwsh
+        run: ./scripts/smoke.ps1
+
+      - name: Unit tests (pipeline builder)
+        run: node test/run.js
+
+      - name: Build installer
+        if: ${{ hashFiles('build/installer.nsh') != '' }}
+        shell: pwsh
+        run: |
+          npm install --no-audit --no-fund
+          npx electron-builder --win --x64 --publish never
+          Get-ChildItem dist -File | ForEach-Object { '{0,10:N1} MB  {1}' -f ($_.Length/1MB), $_.Name }
+
+      - name: Upload installer
+        if: ${{ hashFiles('build/installer.nsh') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer
+          path: dist/*.exe
+          compression-level: 0
+          retention-days: 7
+
+      - name: Publish test build (pre-release)
+        if: ${{ hashFiles('build/installer.nsh') != '' && github.ref == 'refs/heads/main' }}
+        shell: bash
+        run: |
+          f=$(ls dist/*.exe | head -1)
+          gh release delete test-build -y --cleanup-tag 2>/dev/null || true
+          gh release create test-build "$f" --prerelease --title "Test build ${GITHUB_SHA::7}" --notes "Automatic test build from ${GITHUB_SHA}."
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          f=$(ls dist/*.exe | head -1)
+          gh release create "${GITHUB_REF_NAME}" "$f" --title "7krh Studio ${GITHUB_REF_NAME}" --notes-file RELEASE_NOTES.md
