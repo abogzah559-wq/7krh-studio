@@ -9,7 +9,7 @@ function Check($name, [scriptblock]$b) {
   catch { Write-Host "FAIL $name : $_"; $script:fail++ }
 }
 Check 'ffmpeg encoders' { & "$rt\ffmpeg\ffmpeg.exe" -hide_banner -encoders | Select-String 'nvenc|amf|qsv|libx264|libx265|svtav1' }
-Check 'python + onnxruntime' { & $py -c "import onnxruntime as o, numpy, PIL, cv2; print(o.__version__, o.get_available_providers())" }
+Check 'python + onnxruntime' { & $py -c "import onnxruntime as o, numpy, PIL; print(o.__version__, o.get_available_providers())" }
 Check 'vapoursynth core' { & $py -c "import vapoursynth as vs; print(vs.core.version())" }
 $vspipe = Get-ChildItem "$rt\vs" -Recurse -Filter 'vspipe.exe' | Select-Object -First 1
 Write-Host "vspipe: $($vspipe.FullName)"

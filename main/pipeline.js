@@ -205,7 +205,7 @@ function vpyScript(p) {
       ? `Backend.NCNN_VK(fp16=True, num_streams=2${p.gpu >= 0 ? ', device_id=' + p.gpu : ''})`
       : `Backend.ORT_DML(fp16=True, num_streams=2${p.gpu >= 0 ? ', device_id=' + p.gpu : ''})`;
     L.push(`be = ${be}`);
-    if (p.up.tiles > 1) L.push(`rgb = vsmlrt.inference(rgb, r"${p.up.model}", tiles=${p.up.tiles}, overlap=16, backend=be)`);
+    if (p.up.tiles > 1) L.push(`rgb = vsmlrt.inference(rgb, r"${p.up.model}", overlap=(16, 16), tilesize=(${Math.ceil(p.srcW / 2 / 8) * 8}, ${Math.ceil(p.srcH / 2 / 8) * 8}), backend=be)`);
     else L.push(`rgb = vsmlrt.inference(rgb, r"${p.up.model}", backend=be)`);
   }
   L.push(`if rgb.width != ${p.outW} or rgb.height != ${p.outH}:`);

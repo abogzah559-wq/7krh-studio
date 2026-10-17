@@ -8,7 +8,6 @@ Var CreateDesktop
 
 !macro customPageAfterChangeDir
   Page custom DesktopPageCreate DesktopPageLeave
-!macroend
 
 Function DesktopPageCreate
   ${If} $LANGUAGE == 1025
@@ -39,6 +38,7 @@ FunctionEnd
 Function DesktopPageLeave
   ${NSD_GetState} $DesktopCheckbox $CreateDesktop
 FunctionEnd
+!macroend
 !endif
 
 !macro customInstall
