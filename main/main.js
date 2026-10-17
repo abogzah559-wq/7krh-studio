@@ -54,6 +54,16 @@ app.whenReady().then(() => {
   createWindow();
   // warm up hardware detection in the background
   gpu.caps(UD()).catch(() => {});
+  // "7krh Studio.exe --diag" measures the PC and writes Documents\7krh Studio\diagnostics.json
+  if (process.argv.includes('--diag')) {
+    bench.run(UD(), readSettings()).then(report => {
+      const file = path.join(app.getPath('documents'), '7krh Studio', 'diagnostics.json');
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, JSON.stringify(report, null, 1));
+    }).catch(e => {
+      try { fs.writeFileSync(path.join(app.getPath('documents'), '7krh Studio', 'diagnostics-error.txt'), String(e && e.stack || e)); } catch (_) {}
+    });
+  }
 });
 app.on('window-all-closed', () => { img.stop(); for (const j of jobs.values()) j.cancel(); app.quit(); });
 

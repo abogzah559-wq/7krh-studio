@@ -201,7 +201,7 @@ function vpyScript(p) {
     L.push(`_load(r"${p.up.backend === 'ncnn' ? p.plugins.vsncnn : p.plugins.vsort}")`);
     L.push('import vsmlrt');
     L.push('from vsmlrt import Backend');
-    const be = p.up.backend === 'ncnn'
+    const be = p.up.backend === 'cpu' ? 'Backend.ORT_CPU(num_streams=2)' : p.up.backend === 'ncnn'
       ? `Backend.NCNN_VK(fp16=True, num_streams=2${p.gpu >= 0 ? ', device_id=' + p.gpu : ''})`
       : `Backend.ORT_DML(fp16=True, num_streams=2${p.gpu >= 0 ? ', device_id=' + p.gpu : ''})`;
     L.push(`be = ${be}`);

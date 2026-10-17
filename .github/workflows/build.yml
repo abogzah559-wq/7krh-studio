@@ -52,6 +52,10 @@ jobs:
         shell: pwsh
         run: node test/run.js *>&1 | Tee-Object -FilePath ci-logs/3-tests.txt
 
+      - name: End-to-end (real engines, CPU)
+        shell: pwsh
+        run: node test/e2e.js *>&1 | Tee-Object -FilePath ci-logs/3b-e2e.txt
+
       - name: Build installer
         if: ${{ hashFiles('build/installer.nsh') != '' }}
         shell: pwsh
