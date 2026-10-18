@@ -22,9 +22,9 @@ jobs:
           curl -sSLf -o anime.onnx https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-anime.onnx
           ls -la
       - name: run
-        run: python lab.py 2>&1 | tee out/log.txt
+        run: mkdir -p out && python lab.py 2>&1 | tee out/log.txt
       - name: push results
-        if: always()
+        if: ${{ always() }}
         run: |
           cd out && git init -q -b lab-out && git add -A && git -c user.name=ci -c user.email=ci@7krh.dev commit -q -m "lab ${GITHUB_RUN_ID}"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}" lab-out
