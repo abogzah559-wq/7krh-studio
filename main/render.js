@@ -296,7 +296,8 @@ function buildTimelinePlan(project, opts, caps) {
     enc = { name: 'libx264', tenBit: false };
     ff.push('-c:v', 'libx264', '-preset', 'ultrafast', '-qp', '0', '-pix_fmt', 'yuv420p');
   } else {
-    const codec = container === 'webm' ? (out.codec === 'av1' ? 'av1' : 'vp9') : (out.codec || 'h264');
+    const hwAv1 = (caps.encoders || []).some(e => /^av1_(nvenc|amf|qsv)$/.test(e));
+    const codec = container === 'webm' ? (out.codec === 'av1' && hwAv1 ? 'av1' : 'vp9') : (out.codec || 'h264');
     enc = pickEnc(codec, caps, !!out.tenBit);
     ff.push(...encArgs(enc, out, fps, W, H));
   }

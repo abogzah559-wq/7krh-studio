@@ -779,7 +779,8 @@
     const tog = (key, label, sub) => { const i = h('input', { type: 'checkbox', checked: !!o[key] }); i.addEventListener('change', () => { o[key] = i.checked; sync(); summary(); }); ui[key] = i; return h('label', { class: 'toggle', style: 'margin-top:12px' }, i, h('span', { class: 'sw' }), h('span', {}, h('b', { text: label }), sub ? h('small', { text: sub }) : null)); };
     const enc = (App.caps && App.caps.encoders) || [];
     const hasHw = c => enc.some(e => e.startsWith(c + '_') && /nvenc|amf|qsv/.test(e));
-    const codecOpts = () => (o.container === 'webm' ? [['vp9', 'VP9'], ['av1', 'AV1' + (hasHw('av1') ? ' · GPU' : '')]] : [['h264', 'H.264' + (hasHw('h264') ? ' · GPU' : '')], ['hevc', 'HEVC' + (hasHw('hevc') ? ' · GPU' : '')], ['av1', 'AV1' + (hasHw('av1') ? ' · GPU' : '')]]);
+    // WebM: VP9, and AV1 only with a hardware AV1 encoder (software SVT-AV1 inside WebM stalled in Windows tests)
+    const codecOpts = () => (o.container === 'webm' ? [['vp9', 'VP9'], ...(hasHw('av1') ? [['av1', 'AV1 · GPU']] : [])] : [['h264', 'H.264' + (hasHw('h264') ? ' · GPU' : '')], ['hevc', 'HEVC' + (hasHw('hevc') ? ' · GPU' : '')], ['av1', 'AV1' + (hasHw('av1') ? ' · GPU' : '')]]);
     const plats = h('div', { class: 'plats' }, [['self', 'i-user'], ['tiktok', 'i-tiktok'], ['instagram', 'i-insta'], ['youtube', 'i-yt']].map(([k, ic]) => h('button', { class: 'plat' + (o.platform === k ? ' on' : ''), dataset: { p: k }, onclick: e => { o.platform = k; $$('.plat', plats).forEach(x => x.classList.toggle('on', x.dataset.p === k)); applyPlatform(); sync(); summary(); void e; } }, App.icon(ic), h('span', { text: t('p_' + k) }))));
     const hintP = h('p', { class: 'hint' }), fxRow = sel('fx', [['auto', t('fxAuto')], ['to30', t('fx30')], ['2', '×2'], ['4', '×4'], ['6', '×6']], t('fxL')), fxHint = h('p', { class: 'hint' });
     const sum = h('div', { class: 'kv', style: 'margin-top:14px' }), err = h('p', { class: 'hint err' });
