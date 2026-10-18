@@ -57,7 +57,7 @@ jobs:
         run: node test/run.js *>&1 | Tee-Object -FilePath ci-logs/3-tests.txt
 
       - name: Timeline renderer end-to-end (bundled ffmpeg, pixel checks)
-        timeout-minutes: 6
+        timeout-minutes: 12
         continue-on-error: true
         shell: pwsh
         run: |

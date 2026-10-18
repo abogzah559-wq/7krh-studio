@@ -108,6 +108,20 @@ const near = (a, b, tol = 40) => a.every((v, i) => Math.abs(v - b[i]) <= tol);
   const sp3 = JSON.parse(X(P.ffprobe, ['-v', 'error', '-show_streams', '-of', 'json', wout])).streams.map(s => s.codec_type);
   check('subtitle stream muxed', sp3.includes('subtitle'), sp3.join(','));
 
+  // WebM diagnosis: which part stalls on Windows? (reported, not counted as failures)
+  const variant = async (label, out2, mutate) => {
+    const pl = render.buildTimelinePlan(p, { outPath: out2, output: { container: 'webm', codec: 'vp9', quality: 'balanced' } }, caps);
+    mutate(pl.steps[0].ffmpeg); pl.stallSecs = 45;
+    const t1 = Date.now(); let last = 0;
+    try { await new Job(9, pl, ev => { if (ev.frame) last = ev.frame; }, null, { platform, verify: media.verifyOutput }).run(tmp); log(`DIAG ${label}: ok ${((Date.now() - t1) / 1000).toFixed(1)}s`); }
+    catch (e) { log(`DIAG ${label}: STALL/FAIL at frame ${last} — ${String(e.message).split('\n')[0]}`); }
+  };
+  const swap = (a, k, v) => { const i = a.indexOf(k); if (i >= 0) a[i + 1] = v; };
+  await variant('vp9 default', path.join(tmp, 'd1.webm'), () => {});
+  await variant('vp9 row-mt 0', path.join(tmp, 'd2.webm'), a => swap(a, '-row-mt', '0'));
+  await variant('vp9 realtime', path.join(tmp, 'd4.webm'), a => swap(a, '-deadline', 'realtime'));
+  await variant('vp9 threads 1', path.join(tmp, 'd5.webm'), a => { const i = a.indexOf('libvpx-vp9'); a.splice(i + 1, 0, '-threads', '1'); });
+  await variant('av1 svt in webm', path.join(tmp, 'd6.webm'), a => { const i = a.indexOf('libvpx-vp9'); a.splice(i - 1, 2, '-c:v', 'libsvtav1', '-preset', '10', '-crf', '35'); ['-row-mt', '-deadline', '-cpu-used'].forEach(k => { const j = a.indexOf(k); if (j > 0) a.splice(j, 2); }); const b = a.indexOf('-b:v'); if (b > 0) a.splice(b, 2); });
   console.log(fails ? fails + ' check(s) failed' : 'timeline e2e passed');
   if (!process.env.KEEP) fs.rmSync(tmp, { recursive: true, force: true }); else console.log('kept', tmp);
   process.exit(fails ? 1 : 0);
