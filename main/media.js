@@ -22,7 +22,7 @@ function run(cmd, args, { timeout = 120000, input = null, binary = false } = {})
       if (code === 0) resolve(binary ? o : o.toString());
       else reject(new Error(`${path.basename(cmd)} exited ${code}: ${e.slice(-600)}`));
     });
-    if (input) { p.stdin.end(input); }
+    p.stdin.end(input || undefined); // never leave stdin open: ffmpeg could wait on it
   });
 }
 

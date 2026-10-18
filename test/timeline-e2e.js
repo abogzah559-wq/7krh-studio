@@ -15,11 +15,13 @@ const TL = require('../ui/core/tl-core.js');
 const { Job } = require('../main/jobs');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '7k-tl-'));
-const ff = (...a) => execFileSync(P.ffmpeg, ['-v', 'error', '-y', ...a]);
+// -nostdin + no inherited stdin: on the CI runner an inherited pipe can make ffmpeg wait forever
+const X = (cmd, args, o = {}) => execFileSync(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], timeout: 120000, maxBuffer: 1 << 28, ...o });
+const ff = (...a) => X(P.ffmpeg, ['-nostdin', '-v', 'error', '-y', ...a]);
 let fails = 0;
 const check = (name, ok, extra = '') => { console.log((ok ? 'OK  ' : 'FAIL') + ' ' + name + (extra ? '  ' + extra : '')); if (!ok) fails++; };
 function pixel(file, t, x, y, W, H) {
-  const b = execFileSync(P.ffmpeg, ['-v', 'error', '-ss', t.toFixed(3), '-i', file, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1']);
+  const b = X(P.ffmpeg, ['-nostdin', '-v', 'error', '-ss', t.toFixed(3), '-i', file, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1']);
   const i = (Math.round(y) * W + Math.round(x)) * 3; return [b[i], b[i + 1], b[i + 2]];
 }
 const near = (a, b, tol = 40) => a.every((v, i) => Math.abs(v - b[i]) <= tol);
@@ -47,7 +49,7 @@ const near = (a, b, tol = 40) => a.every((v, i) => Math.abs(v - b[i]) <= tol);
   p.tracks.find(t => t.id === 'A1').duck = true;
   const total = TL.duration(p);
   const W = 640, H = 360;
-  const major = +String(execFileSync(P.ffmpeg, ['-version'])).match(/version (?:n)?(\d+)/)?.[1] || 7;
+  const major = +String(X(P.ffmpeg, ['-version'])).match(/version (?:n)?(\d+)/)?.[1] || 7;
   const caps = { encoders: ['libx264', 'libx265', 'libsvtav1', 'libvpx-vp9'], ffmpegMajor: major, paths: P, tmp };
   const out = path.join(tmp, 'out ع.mp4');
   const plan = render.buildTimelinePlan(p, { outPath: out, output: { codec: 'h264', quality: 'high' } }, caps);
@@ -75,8 +77,7 @@ const near = (a, b, tol = 40) => a.every((v, i) => Math.abs(v - b[i]) <= tol);
   check('scaled + rotated box (perspective) covers the vertical extent', near(sp, [255, 0, 0], 60), String(sp));
   check('…and not the horizontal one', !near(sp2, [255, 0, 0], 60), String(sp2));
   // audio: loud where the video sound + music play
-  const vol = execFileSync(P.ffmpeg, ['-v', 'info', '-i', out, '-af', 'volumedetect', '-vn', '-f', 'null', '-'], { stdio: ['ignore', 'pipe', 'pipe'] });
-  check('audio stream present', /audio/i.test(JSON.stringify(await media.probe(out))));
+    check('audio stream present', /audio/i.test(JSON.stringify(await media.probe(out))));
 
   // TikTok header patch on the rendered file (site rule: 30 fps "auto" → ×2)
   const k = platform.factor(30, 'auto');
@@ -97,7 +98,7 @@ const near = (a, b, tol = 40) => a.every((v, i) => Math.abs(v - b[i]) <= tol);
   wplan.steps.push({ kind: 'verify', file: wout, expectDur: total, w: W, h: H, audio: true });
   try { const v = await new Job(3, wplan, () => {}, null, { platform, verify: media.verifyOutput }).run(tmp); check('WebM VP9 bitrate + soft subtitles', v.verify.ok, JSON.stringify(v.verify)); }
   catch (e) { check('WebM VP9', false, String(e.message).slice(0, 800)); }
-  const sp3 = JSON.parse(execFileSync(P.ffprobe, ['-v', 'error', '-show_streams', '-of', 'json', wout])).streams.map(s => s.codec_type);
+  const sp3 = JSON.parse(X(P.ffprobe, ['-v', 'error', '-show_streams', '-of', 'json', wout])).streams.map(s => s.codec_type);
   check('subtitle stream muxed', sp3.includes('subtitle'), sp3.join(','));
 
   console.log(fails ? fails + ' check(s) failed' : 'timeline e2e passed');

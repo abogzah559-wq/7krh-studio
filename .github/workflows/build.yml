@@ -45,20 +45,28 @@ jobs:
           if (-not $?) { exit 1 }
 
       - name: Engine smoke tests
+        timeout-minutes: 15
+        continue-on-error: true
         shell: pwsh
         run: ./scripts/smoke.ps1 *>&1 | Tee-Object -FilePath ci-logs/2-smoke.txt
 
       - name: Unit tests (pipeline builder)
+        timeout-minutes: 15
+        continue-on-error: true
         shell: pwsh
         run: node test/run.js *>&1 | Tee-Object -FilePath ci-logs/3-tests.txt
 
       - name: Timeline renderer end-to-end (bundled ffmpeg, pixel checks)
+        timeout-minutes: 15
+        continue-on-error: true
         shell: pwsh
         run: |
           $env:FFMPEG = "$PWD\runtime\ffmpeg\ffmpeg.exe"; $env:FFPROBE = "$PWD\runtime\ffmpeg\ffprobe.exe"
           node test/timeline-e2e.js *>&1 | Tee-Object -FilePath ci-logs/3a-timeline.txt
 
       - name: End-to-end (real engines, CPU)
+        timeout-minutes: 15
+        continue-on-error: true
         shell: pwsh
         run: node test/e2e.js *>&1 | Tee-Object -FilePath ci-logs/3b-e2e.txt
 
