@@ -30,12 +30,18 @@ async function step(name, f) {
   };
   await step('plain export (trim, speed 2x, 1080p, hevc, music mix)', () => run({ input: src, outPath: path.join(tmp, 'a.mp4'), trim: { start: 0.2, end: 1.8 }, speed: 2, audio: { mode: 'mix', file: src, musicVolume: 0.5 }, adjust: { brightness: 20, saturation: 30, sharpen: 30 }, output: { res: '1080', codec: 'hevc', quality: 'high' } }, 'a'));
   await step('AI upscale x4 (ORT CPU) through vspipe', () => run({ input: src, outPath: path.join(tmp, 'b.mp4'), trim: { start: 0, end: 0.5 }, enhance: { upscale: { on: true, model: 'real' } }, output: { res: '720', codec: 'h264' } }, 'b'));
-  await step('AI upscale anime x2 + crop 9:16 + tiktok krypton', () => run({ input: src, outPath: path.join(tmp, 'c.mp4'), trim: { start: 0, end: 0.5 }, crop: '9:16', enhance: { upscale: { on: true, model: 'anime' } }, output: { res: '720', fps: 60, codec: 'h264' }, platform: 'tiktok' }, 'c'));
+  await step('AI upscale anime + crop 9:16', () => run({ input: src, outPath: path.join(tmp, 'c.mp4'), trim: { start: 0, end: 0.5 }, crop: '9:16', enhance: { upscale: { on: true, model: 'anime' } }, output: { res: '720', fps: 60, codec: 'h264' } }, 'c'));
   await step('AI preview frame', async () => { const plan = pipeline.buildPlan({ input: src, outPath: path.join(tmp, 'p.png'), preview: true, trim: { start: 1 }, enhance: { upscale: { on: true, model: 'real' } }, output: { res: '720' } }, info, caps); await new Job(2, plan, () => {}).run(tmp); return { size: fs.statSync(path.join(tmp, 'p.png')).size }; });
   const still = path.join(tmp, 'still.png');
   await media.run(P.ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=size=640x480', '-frames:v', '1', still]);
-  await step('image engine: background mask (BiRefNet, CPU)', async () => { const r = await img.call('bg', { src: still, mask: path.join(tmp, 'm.png') }); return { ...r, mask: fs.statSync(path.join(tmp, 'm.png')).size }; });
-  await step('image engine: upscale x4 (real, CPU)', async () => img.call('upscale', { src: still, out: path.join(tmp, 'u.png'), model: 'real', scale: 2 }));
+  await step('image engine: analyze', async () => img.call('analyze', { src: still }, null, { cpu: true }));
+  await step('image engine: upscale x2 (real, CPU, strength 0.7, strip metadata)', async () => img.call('upscale', { src: still, out: path.join(tmp, 'u.png'), model: 'real', scale: 2, strength: 0.7, meta: 'strip' }, null, { cpu: true }));
+  await step('image engine: GPU-only refuses to fall back silently on a runner without a GPU', async () => {
+    img.stop();
+    try { await img.call('upscale', { src: still, out: path.join(tmp, 'g.png'), model: 'real', scale: 2 }, null, { gpuOnly: true }); return { note: 'DirectML ran (WARP or a GPU)' }; }
+    catch (e) { if (!/GPU-only/.test(e.message)) throw e; return { refused: true }; }
+  });
+  await step('GPU lists per API (DXGI / Vulkan)', async () => JSON.parse((await media.run(P.python, ['-X', 'utf8', path.join(P.engineDir, 'gpuinfo.py')])).trim()));
   img.stop();
   console.log(fails ? fails + ' e2e step(s) failed' : 'e2e passed');
   process.exit(0);

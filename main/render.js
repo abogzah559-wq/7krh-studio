@@ -162,11 +162,12 @@ function buildTimelinePlan(project, opts, caps) {
     return m;
   };
 
+  const audioOnly = !!opts.audioOnly;
   /* video layers in draw order: bottom track first, then by start time */
-  fc.push(`color=c=${(p.canvas.bg || '#000000').replace('#', '0x')}:s=${W}x${H}:r=${fn}/${fd}:d=${f6(total)},format=gbrp[base0]`);
+  if (!audioOnly) fc.push(`color=c=${(p.canvas.bg || '#000000').replace('#', '0x')}:s=${W}x${H}:r=${fn}/${fd}:d=${f6(total)},format=gbrp[base0]`);
   let cur = 'base0', li = 0;
   const layers = [];
-  for (const t of TL.drawOrder(p)) {
+  for (const t of (audioOnly ? [] : TL.drawOrder(p))) {
     if (t.hidden || subsTracks.has(t.id)) continue;
     p.clips.filter(c => c.track === t.id && TL.isVisual(c)).sort((a, b) => a.start - b.start).forEach(c => layers.push(c));
   }
@@ -226,7 +227,7 @@ function buildTimelinePlan(project, opts, caps) {
     cur = 'b' + li;
   }
   // compositing happens in RGB; one conversion to BT.709 video range at the very end
-  fc.push(`[${cur}]scale=out_color_matrix=bt709:out_range=tv,format=${out.tenBit ? 'yuv420p10le' : 'yuv420p'}[vout]`);
+  if (!audioOnly) fc.push(`[${cur}]scale=out_color_matrix=bt709:out_range=tv,format=${out.tenBit ? 'yuv420p10le' : 'yuv420p'}[vout]`);
 
   /* audio */
   const sounds = p.clips.filter(c => TL.hasSound(p, c) && !(TL.trackOf(p, c) || {}).hidden).sort((a, b) => a.start - b.start);
@@ -277,6 +278,12 @@ function buildTimelinePlan(project, opts, caps) {
   const script = `${tmp}/graph.txt`;
   files[script] = fc.join(';\n');
   ff.push(...((caps.ffmpegMajor || 7) >= 7 ? ['-/filter_complex', script] : ['-filter_complex_script', script]));
+  if (audioOnly) {
+    if (!aout) { const e = new Error('no sound in the project'); e.code = 'noAudio'; throw e; }
+    const fmt = opts.audioFormat || 'wav';
+    ff.push('-map', '[aout]', ...({ mp3: ['-c:a', 'libmp3lame', '-b:a', '320k'], m4a: ['-c:a', 'aac', '-b:a', '320k'], flac: ['-c:a', 'flac'], opus: ['-c:a', 'libopus', '-b:a', '192k'] }[fmt] || ['-c:a', 'pcm_s24le']), '-ar', '48000', '-t', f6(total), '-map_metadata', '-1', opts.outPath);
+    return { steps: [{ kind: 'ffmpeg', ffmpeg: ff, files }], encoder: fmt, enhance: false, expect: { frames: Math.max(1, Math.round(total * 50)), fps: 50, w: 0, h: 0, dur: total, audio: true, kfactor: 1, finalDur: total }, layers: 0, sounds: sounds.length };
+  }
   ff.push('-map', '[vout]');
   if (aout) ff.push('-map', '[aout]');
   if (subIdx >= 0) ff.push('-map', `${subIdx}:s`, '-c:s', container === 'webm' ? 'webvtt' : 'mov_text');

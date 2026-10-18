@@ -142,6 +142,18 @@ if (-not (Test-Path "$esr\realesr-general-x4v3.onnx") -or -not (Test-Path "$esr\
   if ($LASTEXITCODE -ne 0) { throw 'export x4plus failed' }
 }
 
+# ---------------------------------------------------------------- RNNoise model for ffmpeg arnndn (AI voice noise removal), BSD-3, optional
+$rn = Join-Path $rt 'models\rnnoise'
+if (-not (Test-Path "$rn\cb.rnnn")) {
+  try {
+    New-Item -ItemType Directory -Force $rn | Out-Null
+    & git clone --depth 1 -q https://github.com/GregorR/rnnoise-models "$dl\rnnoise"
+    Copy-Item "$dl\rnnoise\conjoined-burgers-2018-08-28\cb.rnnn" "$rn\cb.rnnn"
+    Copy-Item "$dl\rnnoise\COPYING" "$rn\COPYING" -ErrorAction SilentlyContinue
+    Write-Host ('rnnoise model {0:N0} bytes, commit {1}' -f (Get-Item "$rn\cb.rnnn").Length, (& git -C "$dl\rnnoise" rev-parse HEAD))
+  } catch { Write-Host "RNNoise model skipped: $_" }
+}
+
 # background removal was dropped in v0.3: make sure a cached runtime does not ship its model any more
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Join-Path $rt 'models\birefnet')
 
@@ -164,8 +176,15 @@ $man = [ordered]@{
     photo_x4 = 'models\esrgan\RealESRGAN_x4plus.onnx'
     anime_x4 = (Rel ($an | Where-Object Name -eq 'realesr-animevideov3.onnx' | Select-Object -First 1).FullName)
     anime_x2 = (Rel ($an | Where-Object Name -like '*xsx2.onnx' | Select-Object -First 1).FullName)
+    rnnoise = $(if (Test-Path "$rt\models\rnnoise\cb.rnnn") { 'models\rnnoise\cb.rnnn' } else { $null })
   }
 }
+# size + SHA-256 of every engine binary and model, so the app can check its own files (Settings > Engines)
+$files = [ordered]@{}
+Get-ChildItem $rt -Recurse -File -Include *.exe, *.dll, *.pyd, *.onnx, *.bin, *.param, *.rnnn | ForEach-Object {
+  $files[(Rel $_.FullName)] = [ordered]@{ size = $_.Length; sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower() }
+}
+$man["files"] = $files
 $man | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 "$rt\manifest.json"
 Get-Content "$rt\manifest.json"
 

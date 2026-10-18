@@ -59,11 +59,13 @@ class Job {
     stream.on('data', d => {
       buf += d.toString();
       const lines = buf.split(/\r?\n/); buf = lines.pop();
-      let frame = null, speedx = null;
+      let frame = null, speedx = null, outUs = null;
       for (const l of lines) {
         const [k, v] = l.split('=');
-        if (k === 'frame') frame = +v; else if (k === 'speed') speedx = parseFloat(v);
+        if (k === 'frame') frame = +v; else if (k === 'speed') speedx = parseFloat(v); else if (k === 'out_time_us') outUs = +v;
       }
+      // audio-only outputs report no frames: use the written duration instead
+      if (!frame && outUs > 0 && this.plan.expect.dur > 0) frame = Math.round(outUs / 1e6 / this.plan.expect.dur * total);
       if (frame != null) {
         const el = (Date.now() - t0) / 1000;
         if (!this._lp || Date.now() - this._lp > 5000) { this._lp = Date.now(); this.fileLog(`progress frame=${frame}/${total} t=${el.toFixed(1)}s fps=${(frame / Math.max(el, 0.01)).toFixed(2)}`); }

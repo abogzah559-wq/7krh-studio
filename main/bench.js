@@ -1,15 +1,21 @@
 'use strict';
 /* Measures this PC for real: every AI engine runs the same kind of work an export does, each in its own
-   process (one failing engine never hides the others). Results are cached in userData/bench.json and used
-   to pick the fastest engine automatically and to show honest time estimates. */
+   process (one failing engine never hides the others), on the card picked in Settings. Then one complete
+   short export (decode → AI → encode) is timed end to end, because the model speed alone is not what the
+   user waits for. Results are cached in userData/bench.json, pick the fastest engine automatically and
+   drive the time estimates. Nothing here runs without the user starting it (or on first start, once). */
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { spawn } = require('child_process');
 const rt = require('./runtime');
 const gpu = require('./gpu');
 const img = require('./imgserver');
-const { envFor } = require('./jobs');
+const media = require('./media');
+const pipeline = require('./pipeline');
+const { Job, envFor } = require('./jobs');
 
+const BENCH_VERSION = 3;
 const HEAD = `
 import json, time, sys, os
 import vapoursynth as vs
@@ -95,32 +101,57 @@ function bestBackend(ud) {
   return order.length ? order[0][0] : null;
 }
 
+/* one complete short export: 1080p30 test clip → AI ×2 to 4K with the best engine → hardware encode */
+async function endToEnd(ud, caps, dev, backend, onProgress) {
+  const P = rt.paths();
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '7krh-bench-'));
+  try {
+    const src = path.join(tmp, 'src.mp4');
+    await media.run(P.ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=30', '-t', '3', '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', src]);
+    const info = await media.probe(src);
+    const out = path.join(tmp, 'out.mp4');
+    const plan = pipeline.buildPlan({ input: src, outPath: out, enhance: { upscale: { on: true, model: 'real', quality: 'balanced' } }, output: { res: '2160', codec: 'hevc', quality: 'high' } }, info,
+      { encoders: caps.encoders, gpu: dev.dml, dev, upBackend: backend, paths: P, tmp, engines: path.join(ud, 'engines'), lwi: path.join(tmp, 'src.lwi') });
+    const t0 = Date.now();
+    let fps = 0;
+    await new Job(0, plan, ev => { if (ev.fps) fps = ev.fps; onProgress({ step: 'e2e', frac: ev.frac }); }).run(tmp);
+    const secs = (Date.now() - t0) / 1000;
+    return { e2e_1080_to_4k_secs: Math.round(secs * 10) / 10, e2e_1080_to_4k_fps: Math.round(plan.expect.frames / secs * 100) / 100, e2e_encoder: plan.encoder, e2e_backend: backend, e2e_last_fps: Math.round(fps * 100) / 100 };
+  } catch (e) { return { e2e_error: String(e.message || e).slice(0, 600) }; }
+  finally { fs.rm(tmp, { recursive: true, force: true }, () => {}); }
+}
+
 async function run(ud, settings, onProgress = () => {}) {
   const P = rt.paths();
   const t0 = Date.now();
-  const g = settings.gpu || 0;
   let ver = ''; try { ver = require('electron').app.getVersion(); } catch (e) {}
-  const report = { time: new Date().toISOString(), appVersion: ver, benchVersion: 2, runtime: rt.status(), vs: {} };
+  const report = { time: new Date().toISOString(), appVersion: ver, benchVersion: BENCH_VERSION, runtime: rt.status(), vs: {} };
   onProgress({ step: 'caps' });
   report.caps = await gpu.caps(ud, true);
+  const dev = gpu.device(report.caps, settings);
+  report.device = dev;
   const merge = r => Object.assign(report.vs, r.error ? { [r.k + '_error']: r.error } : r);
   onProgress({ step: 'rife' });
-  merge({ k: 'rife', ...(await runPy(RIFE, JSON.stringify({ rife: P.plugins.rife, gpu: g }))) });
+  merge({ k: 'rife', ...(await runPy(RIFE, JSON.stringify({ rife: P.plugins.rife, gpu: dev.vk }))) });
   const engines = path.join(ud, 'engines');
   for (const [name, plugin] of [['ort', P.plugins.vsort], ['ncnn', P.plugins.vsncnn], ['trt', P.plugins.vstrt]]) {
     if (!plugin || !fs.existsSync(plugin)) { report.vs[`esrgan_${name}_error`] = 'not installed'; continue; }
+    if (name === 'trt' && !dev.nvidia) { report.vs.esrgan_trt_error = 'not an NVIDIA card'; continue; }
     onProgress({ step: 'upscale_' + name });
     // TensorRT builds an engine the first time (minutes); later runs reuse it from userData\engines
     const sizes = name === 'trt' ? [[720, 1280]] : [[540, 960], [720, 1280], [1080, 1920]];
-    merge({ k: 'esrgan_' + name, ...(await runPy(UPSCALE, JSON.stringify({ backend: name, plugin, model: P.models.real_x4, gpu: g, engines, sizes }), name === 'trt' ? 1500000 : 600000)) });
+    const id = name === 'trt' ? dev.cuda : name === 'ncnn' ? dev.vk : dev.dml;
+    merge({ k: 'esrgan_' + name, ...(await runPy(UPSCALE, JSON.stringify({ backend: name, plugin, model: P.models.real_x4, gpu: id, engines, sizes }), name === 'trt' ? 1500000 : 600000)) });
   }
   onProgress({ step: 'image' });
-  try { report.image = await img.call('bench', { device: g }); } catch (e) { report.image = { error: String(e.message || e).slice(0, 800) }; }
-  report.best = (() => { fs.writeFileSync(path.join(ud, 'bench.json'), JSON.stringify(report, null, 1)); return bestBackend(ud); })();
+  try { report.image = await img.call('bench', { device: dev.dml }, null, { gpuOnly: false }); } catch (e) { report.image = { error: String(e.message || e).slice(0, 800) }; }
+  fs.writeFileSync(path.join(ud, 'bench.json'), JSON.stringify(report, null, 1));
+  report.best = bestBackend(ud);
+  if (report.best) { onProgress({ step: 'e2e' }); report.e2e = await endToEnd(ud, report.caps, dev, report.best, onProgress); }
   report.secs = Math.round((Date.now() - t0) / 1000);
   fs.writeFileSync(path.join(ud, 'bench.json'), JSON.stringify(report, null, 1));
   onProgress({ step: 'done' });
   return report;
 }
 
-module.exports = { run, cached, bestBackend };
+module.exports = { run, cached, bestBackend, BENCH_VERSION };

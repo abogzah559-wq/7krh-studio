@@ -1,15 +1,15 @@
 {
   "name": "7krh-studio",
   "productName": "7krh Studio",
-  "version": "0.2.0",
-  "description": "7krh Studio \u2014 AI video & image enhancer, frame generation, background removal and platform export.",
+  "version": "0.3.0",
+  "description": "7krh Studio \u2014 multi-track video editor, AI video & image enhancement, frame generation and platform export.",
   "author": "7krh",
   "license": "MIT",
   "main": "main/main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node test/run.js",
+    "test": "node test/run.js && node test/timeline-e2e.js",
     "dist": "electron-builder --win --x64 --publish never"
   },
   "devDependencies": {

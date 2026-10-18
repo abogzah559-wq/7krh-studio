@@ -52,6 +52,12 @@ jobs:
         shell: pwsh
         run: node test/run.js *>&1 | Tee-Object -FilePath ci-logs/3-tests.txt
 
+      - name: Timeline renderer end-to-end (bundled ffmpeg, pixel checks)
+        shell: pwsh
+        run: |
+          $env:FFMPEG = "$PWD\runtime\ffmpeg\ffmpeg.exe"; $env:FFPROBE = "$PWD\runtime\ffmpeg\ffprobe.exe"
+          node test/timeline-e2e.js *>&1 | Tee-Object -FilePath ci-logs/3a-timeline.txt
+
       - name: End-to-end (real engines, CPU)
         shell: pwsh
         run: node test/e2e.js *>&1 | Tee-Object -FilePath ci-logs/3b-e2e.txt

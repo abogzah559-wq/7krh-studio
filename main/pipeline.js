@@ -183,7 +183,10 @@ function vpyScript(p) {
     L.push(`_load(r"${p.up.backend === 'ncnn' ? p.plugins.vsncnn : p.up.backend === 'trt' ? p.plugins.vstrt : p.plugins.vsort}")`);
     L.push('import vsmlrt');
     L.push('from vsmlrt import Backend');
-    const dev = p.gpu >= 0 ? ', device_id=' + p.gpu : '';
+    // each API numbers the cards its own way (DXGI for DirectML, Vulkan for ncnn, CUDA for TensorRT)
+    const D = p.dev || { dml: p.gpu, vk: p.gpu, cuda: p.gpu };
+    const id = p.up.backend === 'trt' ? D.cuda : p.up.backend === 'ncnn' ? D.vk : D.dml;
+    const dev = p.gpu >= 0 && id >= 0 ? ', device_id=' + id : '';
     const be = p.up.backend === 'cpu' ? 'Backend.ORT_CPU(num_streams=2)'
       : p.up.backend === 'ncnn' ? `Backend.NCNN_VK(fp16=True, num_streams=2${dev})`
       : p.up.backend === 'trt' ? `Backend.TRT_RTX(fp16=True, num_streams=2${dev}, engine_folder=r"${p.engines}")`
@@ -210,7 +213,7 @@ function vpyScript(p) {
     L.push('st = core.std.ModifyFrame(st, st, _mark)');
     L.push('rgb = core.std.CopyFrameProps(rgb, st, props=["_SceneChangeNext"])');
     L.push(`_load(r"${p.plugins.rife}")`);
-    L.push(`rgb = core.rife.RIFE(rgb, model=${p.fg.model}, factor_num=${p.fg.num}, factor_den=${p.fg.den}, gpu_thread=${p.fg.threads || 2}, uhd=(rgb.width * rgb.height > 2600000), sc=True${p.gpu >= 0 ? ', gpu_id=' + p.gpu : ''})`);
+    L.push(`rgb = core.rife.RIFE(rgb, model=${p.fg.model}, factor_num=${p.fg.num}, factor_den=${p.fg.den}, gpu_thread=${p.fg.threads || 2}, uhd=(rgb.width * rgb.height > 2600000), sc=True${p.gpu >= 0 ? ', gpu_id=' + ((p.dev && p.dev.vk >= 0) ? p.dev.vk : p.gpu) : ''})`);
   };
   if (p.fg && !p.up) { rife(); resize(); }
   else { resize(); if (p.fg) rife(); }
@@ -297,7 +300,7 @@ function buildPlan(opts, info, caps) {
       src: opts.input, cache: caps.lwi || (caps.tmp + '\\src.lwi'), start, end, rotation: num(info.rotation, 0), matrix,
       fpsNum: fraction(srcFps)[0], fpsDen: fraction(srcFps)[1],
       crop: crop ? { w: crop.w, h: crop.h, x: Math.floor((w0 - crop.w) / 4) * 2, y: Math.floor((h0 - crop.h) / 4) * 2 } : null,
-      fg, up, outW: W, outH: H, tenBit: enc.tenBit, gpu: num(caps.gpu, -1), srcW: cw, srcH: ch, engines: caps.engines || (caps.tmp + '\\engines'),
+      fg, up, outW: W, outH: H, tenBit: enc.tenBit, gpu: num(caps.gpu, -1), dev: caps.dev || null, srcW: cw, srcH: ch, engines: caps.engines || (caps.tmp + '\\engines'),
       plugins: P.plugins,
     });
     const [rn, rd] = fraction(fpsBeforeSpeed);

@@ -59,12 +59,12 @@ async function probe(file) {
 }
 
 /* N thumbnails across the clip, as JPEG data URLs, using fast input seeking. */
-async function thumbs(file, duration, count = 12, height = 72) {
+async function thumbs(file, duration, count = 12, height = 72, start = 0) {
   const P = rt.paths();
   const out = [];
   const jobs = [];
   for (let i = 0; i < count; i++) {
-    const t = duration > 0 ? (duration * (i + 0.5)) / count : 0;
+    const t = start + (duration > 0 ? (duration * (i + 0.5)) / count : 0);
     jobs.push(run(P.ffmpeg, ['-v', 'error', '-ss', t.toFixed(3), '-i', file, '-frames:v', '1', '-vf', `scale=-2:${height}:flags=fast_bilinear`, '-q:v', '5', '-f', 'mjpeg', 'pipe:1'], { binary: true, timeout: 30000 })
       .then(b => { out[i] = 'data:image/jpeg;base64,' + b.toString('base64'); })
       .catch(() => { out[i] = null; }));
