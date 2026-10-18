@@ -19,7 +19,10 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '7k-tl-'));
 const X = (cmd, args, o = {}) => execFileSync(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], timeout: 120000, maxBuffer: 1 << 28, ...o });
 const ff = (...a) => X(P.ffmpeg, ['-nostdin', '-v', 'error', '-y', ...a]);
 let fails = 0;
-const check = (name, ok, extra = '') => { console.log((ok ? 'OK  ' : 'FAIL') + ' ' + name + (extra ? '  ' + extra : '')); if (!ok) fails++; };
+// every line also goes straight to a file, so a CI timeout still leaves the trace behind
+const TRACE = process.env.TRACE_FILE;
+const log = s => { console.log(s); if (TRACE) try { fs.appendFileSync(TRACE, s + '\n'); } catch (e) {} };
+const check = (name, ok, extra = '') => { log((ok ? 'OK  ' : 'FAIL') + ' ' + name + (extra ? '  ' + extra : '')); if (!ok) fails++; };
 function pixel(file, t, x, y, W, H) {
   const b = X(P.ffmpeg, ['-nostdin', '-v', 'error', '-ss', t.toFixed(3), '-i', file, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1']);
   const i = (Math.round(y) * W + Math.round(x)) * 3; return [b[i], b[i + 1], b[i + 2]];
@@ -94,14 +97,14 @@ const near = (a, b, tol = 40) => a.every((v, i) => Math.abs(v - b[i]) <= tol);
   // WebM / VP9 + bitrate mode + soft subtitles
   p.tracks.find(t => t.id === 'T1').sub = true;
   const wout = path.join(tmp, 'o.webm');
-  console.log('… WebM step: building plan');
+  log('… WebM step: building plan');
   const wplan = render.buildTimelinePlan(p, { outPath: wout, output: { container: 'webm', codec: 'vp9', quality: 'balanced', rate: { mode: 'bitrate', mbps: 2 }, softSubs: true } }, caps);
   wplan.steps.push({ kind: 'verify', file: wout, expectDur: total, w: W, h: H, audio: true });
   wplan.stallSecs = 60;
-  console.log('… WebM step: running', wplan.steps[0].ffmpeg.slice(-12).join(' '));
+  log('… WebM step: running', wplan.steps[0].ffmpeg.slice(-12).join(' '));
   try { const v = await new Job(3, wplan, () => {}, null, { platform, verify: media.verifyOutput }).run(tmp); check('WebM VP9 bitrate + soft subtitles', v.verify.ok, JSON.stringify(v.verify)); }
   catch (e) { check('WebM VP9', false, String(e.message).slice(0, 800)); }
-  console.log('… WebM step: probing');
+  log('… WebM step: probing');
   const sp3 = JSON.parse(X(P.ffprobe, ['-v', 'error', '-show_streams', '-of', 'json', wout])).streams.map(s => s.codec_type);
   check('subtitle stream muxed', sp3.includes('subtitle'), sp3.join(','));
 

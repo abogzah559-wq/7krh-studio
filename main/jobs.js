@@ -66,6 +66,7 @@ class Job {
       }
       // audio-only outputs report no frames: use the written duration instead
       if (!frame && outUs > 0 && this.plan.expect.dur > 0) frame = Math.round(outUs / 1e6 / this.plan.expect.dur * total);
+      if (frame != null && frame !== this._lastFrame) { this._lastFrame = frame; this.alive = Date.now(); }
       if (frame != null) {
         const el = (Date.now() - t0) / 1000;
         if (!this._lp || Date.now() - this._lp > 5000) { this._lp = Date.now(); this.fileLog(`progress frame=${frame}/${total} t=${el.toFixed(1)}s fps=${(frame / Math.max(el, 0.01)).toFixed(2)}`); }
@@ -84,8 +85,7 @@ class Job {
     this.alive = Date.now();
     const beat = () => { this.alive = Date.now(); };
     p.stderr && p.stderr.on('data', d => { beat(); String(d).split(/\r?\n/).forEach(l => l.trim() && this.logLine(path.basename(cmd) + ': ' + l)); });
-    p.stdout && p.stdout.on('data', beat);
-    // watchdog: a process that prints nothing (no progress, no error) for too long is stuck — stop it and say so
+    // watchdog: a process whose progress does not advance (and that prints no message) for too long is stuck — stop it and say so
     const limit = this.plan.stallSecs || 300;
     const wd = setInterval(() => {
       if (p.exitCode != null) return clearInterval(wd);

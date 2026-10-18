@@ -57,11 +57,11 @@ jobs:
         run: node test/run.js *>&1 | Tee-Object -FilePath ci-logs/3-tests.txt
 
       - name: Timeline renderer end-to-end (bundled ffmpeg, pixel checks)
-        timeout-minutes: 15
+        timeout-minutes: 6
         continue-on-error: true
         shell: pwsh
         run: |
-          $env:FFMPEG = "$PWD\runtime\ffmpeg\ffmpeg.exe"; $env:FFPROBE = "$PWD\runtime\ffmpeg\ffprobe.exe"
+          $env:FFMPEG = "$PWD\runtime\ffmpeg\ffmpeg.exe"; $env:FFPROBE = "$PWD\runtime\ffmpeg\ffprobe.exe"; $env:TRACE_FILE = "$PWD\ci-logs\3a-trace.txt"
           node test/timeline-e2e.js *>&1 | Tee-Object -FilePath ci-logs/3a-timeline.txt
 
       - name: End-to-end (real engines, CPU)

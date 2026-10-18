@@ -268,12 +268,15 @@ function buildTimelinePlan(project, opts, caps) {
     fc.push(`[${aout}]${post.join(',')}[aout]`);
   }
 
-  /* subtitles as a separate track */
-  let subIdx = -1;
+  /* subtitles as a separate track: muxed in a second, copy-only step (ffmpeg 7/8 can stall when a subtitle
+     input shares the encode with a filter graph) */
+  let subsFile = null;
   if (subsTracks.size) {
     const items = p.clips.filter(c => c.kind === 'text' && subsTracks.has(c.track)).sort((a, b) => a.start - b.start).map(c => ({ start: c.start, end: TL.end(c), text: c.text.s }));
-    if (items.length) { const f = `${tmp}/subs.srt`; files[f] = TL.toSRT(items); ff.push('-i', f); subIdx = nIn++; }
+    if (items.length) { subsFile = `${tmp}/subs.srt`; files[subsFile] = TL.toSRT(items); }
   }
+  const finalOut = opts.outPath;
+  const encOut = subsFile ? `${tmp}/av-nosubs.${container === 'webm' ? 'webm' : container}` : finalOut;
 
   const script = `${tmp}/graph.txt`;
   files[script] = fc.join(';\n');
@@ -286,7 +289,6 @@ function buildTimelinePlan(project, opts, caps) {
   }
   ff.push('-map', '[vout]');
   if (aout) ff.push('-map', '[aout]');
-  if (subIdx >= 0) ff.push('-map', `${subIdx}:s`, '-c:s', container === 'webm' ? 'webvtt' : 'mov_text');
 
   // encoder
   let enc;
@@ -311,10 +313,12 @@ function buildTimelinePlan(project, opts, caps) {
     if (container !== 'webm') ff.push('-movflags', '+faststart');
     ff.push('-map_metadata', '-1', '-metadata', 'encoder=7krh Studio');
   }
-  ff.push(opts.outPath);
+  ff.push(encOut);
   const frames = Math.max(1, Math.round(total * fps));
+  const steps = [{ kind: 'ffmpeg', ffmpeg: ff, files }];
+  if (subsFile) steps.push({ kind: 'ffmpeg', post: true, ffmpeg: [P.ffmpeg, '-hide_banner', '-nostdin', '-y', '-loglevel', 'error', '-i', encOut, '-i', subsFile, '-map', '0', '-map', '1:s', '-c', 'copy', '-c:s', container === 'webm' ? 'webvtt' : 'mov_text', '-metadata:s:s:0', 'language=ara', ...(container !== 'webm' ? ['-movflags', '+faststart'] : []), finalOut] });
   return {
-    steps: [{ kind: 'ffmpeg', ffmpeg: ff, files }],
+    steps,
     encoder: enc.name, enhance: false,
     expect: { frames, fps, w: W, h: H, dur: total, audio: !!aout, kfactor: 1, finalDur: total },
     layers: layers.length, sounds: sounds.length,
