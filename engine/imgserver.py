@@ -1,7 +1,6 @@
 """7krh Studio — image engine.
 Long-lived process that keeps ONNX models on the GPU (DirectML) and answers JSON-line requests:
   {"id":1,"op":"init"}
-  {"id":2,"op":"bg","src":"in.jpg","mask":"out_mask.png"}                 -> background removal mask (BiRefNet)
   {"id":3,"op":"upscale","src":"in.jpg","out":"out.png","model":"photo|real|anime","scale":4}
 Replies: {"id":..,"ok":true,...} or {"id":..,"ok":false,"err":".."}; progress: {"id":..,"progress":0.4}
 """
@@ -38,8 +37,7 @@ def _make(path, mode):
         opts.graph_optimization_level = (ort.GraphOptimizationLevel.ORT_ENABLE_ALL if mode == 'dml'
                                          else ort.GraphOptimizationLevel.ORT_ENABLE_BASIC)
         if mode == 'dml-safe':
-            # run the model as many small DirectML ops instead of one fused graph (the fused graph is what
-            # failed on RTX 40 + BiRefNet fp32)
+            # run the model as many small DirectML ops instead of one fused graph (some drivers fail on fused nodes)
             opts.add_session_config_entry('ep.dml.disable_graph_fusion', '1')
     else:
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
@@ -85,64 +83,6 @@ def load_rgb(src):
     im = ImageOps.exif_transpose(im)
     alpha = im.getchannel('A') if im.mode in ('RGBA', 'LA', 'PA') else None
     return im.convert('RGB'), alpha
-
-
-# ---------------------------------------------------------------- background removal
-def box(a, r):
-    """Mean filter with an integral image (edge-clamped), float32."""
-    h, w = a.shape
-    p = np.pad(a, ((r + 1, r), (r + 1, r)), mode='edge').astype(np.float64)
-    c = p.cumsum(0).cumsum(1)
-    s = c[2 * r + 1:, 2 * r + 1:] - c[:-2 * r - 1, 2 * r + 1:] - c[2 * r + 1:, :-2 * r - 1] + c[:-2 * r - 1, :-2 * r - 1]
-    return (s / ((2 * r + 1) ** 2)).astype(np.float32)
-
-
-def guided(I, p, r, eps):
-    """Guided filter (He et al.): snaps the soft AI matte to the real edges of the photo."""
-    mI, mp = box(I, r), box(p, r)
-    cov = box(I * p, r) - mI * mp
-    var = box(I * I, r) - mI * mI
-    a = cov / (var + eps)
-    b = mp - a * mI
-    q = box(a, r) * I + box(b, r)
-    return np.clip(q, 0, 1)
-
-
-def op_bg(req):
-    t0 = time.time()
-    path = MANIFEST['birefnet']
-    s = session(path)
-    im, src_alpha = load_rgb(req['src'])
-    W, H = im.size
-    x = np.asarray(im.resize((1024, 1024), Image.BICUBIC), dtype=np.float32) / 255.0
-    x = (x - np.array([0.485, 0.456, 0.406], np.float32)) / np.array([0.229, 0.224, 0.225], np.float32)
-    x = x.transpose(2, 0, 1)[None]
-    inp = s.get_inputs()[0]
-    if 'float16' in inp.type:
-        x = x.astype(np.float16)
-    y = run(path, {inp.name: x})[0].astype(np.float32)[0, 0]
-    s = session(path)
-    if y.min() < -0.01 or y.max() > 1.01:
-        y = 1.0 / (1.0 + np.exp(-y))
-    m = Image.fromarray((np.clip(y, 0, 1) * 255).astype(np.uint8)).resize((W, H), Image.BICUBIC)
-    a = np.asarray(m, dtype=np.float32) / 255.0
-    if req.get('refine', True):
-        # refine at up to 2048 px on the long side, then scale to full size
-        k = min(1.0, 2048.0 / max(W, H))
-        gw, gh = max(1, int(W * k)), max(1, int(H * k))
-        g = np.asarray(im.resize((gw, gh), Image.BILINEAR).convert('L'), dtype=np.float32) / 255.0
-        pa = np.asarray(Image.fromarray((a * 255).astype(np.uint8)).resize((gw, gh), Image.BILINEAR), dtype=np.float32) / 255.0
-        r = max(2, round(max(gw, gh) / 420))
-        q = guided(g, pa, r, 6e-4)
-        mp = box(pa, r)
-        wgt = np.clip(np.minimum(mp, 1 - mp) * 6, 0, 1)
-        band = (mp > 0.015) & (mp < 0.985)
-        ref = np.where(band, q * wgt + pa * (1 - wgt), pa)
-        a = np.asarray(Image.fromarray((ref * 255).astype(np.uint8)).resize((W, H), Image.BICUBIC), dtype=np.float32) / 255.0
-    if src_alpha is not None:
-        a = a * (np.asarray(src_alpha, dtype=np.float32) / 255.0)
-    Image.fromarray((np.clip(a, 0, 1) * 255).astype(np.uint8), 'L').save(req['mask'], compress_level=1)
-    return {'w': W, 'h': H, 'ms': int((time.time() - t0) * 1000), 'provider': s.get_providers()[0]}
 
 
 # ---------------------------------------------------------------- image upscale (tiled)
@@ -195,29 +135,26 @@ def op_init(req):
 
 
 def op_bench(req):
-    """Measures the GPU on this PC: BiRefNet and Real-ESRGAN timings (used by Settings > Diagnostics)."""
+    """Measures Real-ESRGAN throughput on this PC (Settings > Diagnostics)."""
     res = {}
-    s = session(MANIFEST['birefnet'])
-    inp = s.get_inputs()[0]
-    x = np.random.rand(1, 3, 1024, 1024).astype(np.float16 if 'float16' in inp.type else np.float32)
-    run(MANIFEST['birefnet'], {inp.name: x})
-    t = time.time()
-    for _ in range(3):
-        run(MANIFEST['birefnet'], {inp.name: x})
-    res['birefnet_ms'] = int((time.time() - t) / 3 * 1000)
-    s2 = session(MANIFEST['real_x4'])
-    i2 = s2.get_inputs()[0]
-    y = np.random.rand(1, 3, 540, 960).astype(np.float32)
-    run(MANIFEST['real_x4'], {i2.name: y})
-    t = time.time()
-    for _ in range(5):
-        run(MANIFEST['real_x4'], {i2.name: y})
-    res['esrgan_960x540_fps'] = round(5 / (time.time() - t), 2)
-    res['provider'] = session(MANIFEST['birefnet']).get_providers()[0] + ' / ' + _modes.get(MANIFEST['birefnet'], '')
+    for key in ('real_x4', 'photo_x4'):
+        path = MANIFEST.get(key)
+        if not path or not os.path.exists(path):
+            continue
+        s = session(path)
+        i = s.get_inputs()[0]
+        h, w = (540, 960) if key == 'real_x4' else (256, 256)
+        y = np.random.rand(1, 3, h, w).astype(np.float16 if 'float16' in i.type else np.float32)
+        run(path, {i.name: y})
+        t = time.time()
+        for _ in range(3):
+            run(path, {i.name: y})
+        res[key + '_%dx%d_ms' % (w, h)] = int((time.time() - t) / 3 * 1000)
+        res[key + '_provider'] = session(path).get_providers()[0] + ' / ' + _modes.get(path, '')
     return res
 
 
-OPS = {'init': op_init, 'bg': op_bg, 'upscale': op_upscale, 'bench': op_bench}
+OPS = {'init': op_init, 'upscale': op_upscale, 'bench': op_bench}
 
 
 def main():

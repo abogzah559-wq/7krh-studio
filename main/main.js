@@ -195,11 +195,6 @@ handle('diag:cached', async () => bench.cached(UD()));
 handle('job:cancel', async id => { const j = jobs.get(id); if (j) j.cancel(); return true; });
 
 /* ---------------------------------------------------------------- images */
-handle('img:bg', async src => {
-  const mask = path.join(media.tmpDir('masks'), `m${Date.now()}.png`);
-  const r = await img.call('bg', { src, mask, device: readSettings().gpu || 0 });
-  return { ...r, mask };
-});
 handle('img:upscale', async (src, out, model, scale, reqId) => {
   const r = await img.call('upscale', { src, out, model, scale, device: readSettings().gpu || 0 }, p => win && win.webContents.send('img:progress', { reqId, p }));
   return { ...r, out };

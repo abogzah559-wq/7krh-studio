@@ -50,11 +50,8 @@
   App.openPaths = async (paths, prefer) => {
     if (!paths || !paths.length) return;
     const imgs = paths.filter(p => IMG.test(p)), vids = paths.filter(p => !IMG.test(p));
-    if (vids.length && prefer !== 'images' && prefer !== 'bg') { App.go('edit'); window.Editor && Editor.load(vids[0]); return; }
-    if (imgs.length) {
-      const to = prefer === 'images' || prefer === 'bg' ? prefer : (App.view === 'images' ? 'images' : 'bg');
-      App.go(to); (to === 'images' ? window.Images : window.Cutout).add(imgs);
-    }
+    if (vids.length && prefer !== 'images') { App.go('edit'); window.Editor && Editor.load(vids[0]); return; }
+    if (imgs.length) { App.go('images'); window.Images.add(imgs); }
   };
   $('#homeDrop').addEventListener('click', async () => App.openPaths(await S.open('any', true)));
   let dragN = 0;
@@ -99,7 +96,6 @@
     if (best && v[`esrgan_${best}_720p_fps`]) rows.push([`AI 4K (${eng[best]})`, v[`esrgan_${best}_720p_fps`].toFixed(1) + ' fps']);
     if (v['rife_4.26_2160p_fps']) rows.push(['RIFE 4.26 · 4K', v['rife_4.26_2160p_fps'] + ' fps']);
     if (v['rife_4.26_1080p_fps']) rows.push(['RIFE 4.26 · 1080p', v['rife_4.26_1080p_fps'] + ' fps']);
-    if (im.birefnet_ms) rows.push([App.t('nav_bg'), im.birefnet_ms + ' ms']);
     rows.forEach(([k, val]) => { const d = document.createElement('div'); d.className = 'row'; const a = document.createElement('span'); a.textContent = k; const b = document.createElement('b'); b.textContent = val; d.append(a, b); box.appendChild(d); });
     const errs = Object.keys(v).filter(k => /error/.test(k) && !/not installed/.test(v[k]));
     if (!rows.length || errs.length) { const d = document.createElement('div'); d.className = 'hint warn'; d.textContent = App.t('bench_partial'); box.appendChild(d); }

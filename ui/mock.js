@@ -18,9 +18,8 @@ if (!window.studio) (() => {
       return { encoder: o.output.codec + '_nvenc', expect: { w: Math.round(res * 16 / 9), h: res, fps, dur: d, kfactor: k, finalDur: d * k }, up: o.enhance.upscale.on && res > 1080 ? { scale: 2 } : null, fg: o.enhance.framegen.on && fps > 31 ? { num: Math.round(fps / 29.97), den: 1 } : null }; },
     start: async (o) => { const id = ++jid; (async () => { emit('job:event', { id, type: 'phase', phase: 'ai' }); for (let f = 0; f <= 1; f += 0.05) { await wait(150); emit('job:event', { id, type: 'progress', frac: f, fps: 61.2, eta: (1 - f) * 40 }); } emit('job:event', { id, type: 'done', out: o.outPath, size: 812e6, secs: 41, expect: { w: 3840, h: 2160, fps: 119.88 } }); })(); return { id, expect: { w: 3840, h: 2160, fps: 119.88 } }; },
     cancel: async () => true, preview: async () => { throw new Error('not available in the browser'); },
-    removeBg: async () => { await wait(600); return { mask: 'mask.png', ms: 820, w: 1600, h: 1200 }; },
     upscaleImage: async (s, o, m, sc, req) => { for (let p = 0; p <= 1; p += .25) { await wait(120); emit('img:progress', { reqId: req, p }); } return { w: 6400, h: 4800, ms: 2300, out: o }; },
-    warmImage: async () => ({}), diag: async () => ({ file: 'C:\\Users\\you\\Documents\\7krh Studio\\diagnostics.json', report: { caps: await window.studio.caps(), vs: { 'esrgan_ort_540p_to_4k_fps': 38.4, 'esrgan_ort_1080p_x4_fps': 9.6, 'rife_4.26_1080p_x2_fps': 142.1, 'rife_4.6_1080p_x2_fps': 210.5 }, image: { birefnet_ms: 160 } } }),
+    warmImage: async () => ({}), diag: async () => ({ file: 'C:\\Users\\you\\Documents\\7krh Studio\\diagnostics.json', report: { caps: await window.studio.caps(), vs: { 'esrgan_ort_540p_to_4k_fps': 38.4, 'esrgan_ort_1080p_x4_fps': 9.6, 'rife_4.26_1080p_x2_fps': 142.1, 'rife_4.6_1080p_x2_fps': 210.5 }, image: { real_x4_960x540_ms: 210 } } }),
     diagCached: async () => null,
     onJob: on('job:event'), onProxy: on('proxy:progress'), onImg: on('img:progress'), onDiag: on('diag:progress'),
   };

@@ -2,7 +2,7 @@
   "name": "7krh-studio",
   "productName": "7krh Studio",
   "version": "0.2.0",
-  "description": "7krh Studio \u2014 AI video & image enhancer, frame generation, background removal and platform export.",
+  "description": "7krh Studio \u2014 AI video editor and enhancer: timeline editing, AI upscale, frame generation and platform export.",
   "author": "7krh",
   "license": "MIT",
   "main": "main/main.js",

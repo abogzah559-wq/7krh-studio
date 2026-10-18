@@ -19,7 +19,7 @@
     busy(t('home_drop'));
     try {
       const info = await S.probe(path);
-      if (info.kind !== 'video') { busy(''); if (info.kind === 'image') { App.openPaths([path], 'bg'); } else App.toast(t('err_open'), 'err'); return; }
+      if (info.kind !== 'video') { busy(''); if (info.kind === 'image') { App.openPaths([path], 'images'); } else App.toast(t('err_open'), 'err'); return; }
       st.file = path; st.info = info; st.tin = 0; st.tout = info.duration || 0;
       $('#eEmpty').hidden = true; vid.hidden = false; $('#cmp').hidden = true;
       $('#eName').textContent = info.name;

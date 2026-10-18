@@ -12,7 +12,7 @@ let lastErr = '';
 function start(device = 0) {
   if (ready) return ready;
   const P = rt.paths();
-  const man = JSON.stringify({ birefnet: P.models.birefnet, photo_x4: P.models.photo_x4, real_x4: P.models.real_x4, anime_x4: P.models.anime_x4, device });
+  const man = JSON.stringify({ photo_x4: P.models.photo_x4, real_x4: P.models.real_x4, anime_x4: P.models.anime_x4, device });
   const script = path.join(P.engineDir, 'imgserver.py');
   ready = new Promise((resolve, reject) => {
     proc = spawn(P.python, ['-u', '-X', 'utf8', script, man], { windowsHide: true, env: envFor() });

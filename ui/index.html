@@ -12,7 +12,6 @@
     <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/></symbol>
     <symbol id="i-film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 5v14M17 5v14M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4"/><path d="m10.5 9.5 3.5 2.5-3.5 2.5z" fill="currentColor"/></symbol>
     <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="9.5" r="1.8"/><path d="m4 18 5.5-5.5 3.5 3.5 2.5-2.5L20 18"/><path d="M17 2.5v3M15.5 4h3"/></symbol>
-    <symbol id="i-cut" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5" stroke-dasharray="2.4 2.4"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19c.8-3 3-4.6 5.5-4.6s4.7 1.6 5.5 4.6"/></symbol>
     <symbol id="i-queue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11M7.5 9.5 12 14l4.5-4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
     <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></symbol>
@@ -41,7 +40,6 @@
     <div class="nav on" data-v="home"><svg><use href="#i-home"/></svg><span data-i="nav_home"></span></div>
     <div class="nav" data-v="edit"><svg><use href="#i-film"/></svg><span data-i="nav_edit"></span></div>
     <div class="nav" data-v="images"><svg><use href="#i-image"/></svg><span data-i="nav_images"></span></div>
-    <div class="nav" data-v="bg"><svg><use href="#i-cut"/></svg><span data-i="nav_bg"></span></div>
     <div class="nav" data-v="queue"><svg><use href="#i-queue"/></svg><span data-i="nav_queue"></span><span class="badge" id="qBadge" hidden>0</span></div>
     <div class="sp"></div>
     <div class="nav" data-v="settings"><svg><use href="#i-gear"/></svg><span data-i="nav_settings"></span></div>
@@ -65,7 +63,6 @@
           <div class="cards">
             <div class="card" data-go="edit"><div class="ic"><svg><use href="#i-film"/></svg></div><b data-i="card_enh"></b><p data-i="card_enh_sub"></p></div>
             <div class="card" data-go="images"><div class="ic"><svg><use href="#i-image"/></svg></div><b data-i="card_img"></b><p data-i="card_img_sub"></p></div>
-            <div class="card" data-go="bg"><div class="ic"><svg><use href="#i-cut"/></svg></div><b data-i="card_bg"></b><p data-i="card_bg_sub"></p></div>
           </div>
         </div>
         <div class="panel hw">
@@ -215,43 +212,6 @@
       </div>
     </section>
 
-    <!-- BACKGROUND REMOVER -->
-    <section class="view full" id="v-bg" hidden>
-      <div class="split">
-        <div class="flist">
-          <div class="top"><button class="btn sm primary" id="bgAdd"><svg><use href="#i-upload"/></svg><span data-i="bg_add"></span></button><button class="btn sm ghost" id="bgClearList" data-i="img_clear"></button></div>
-          <div class="items" id="bgList"></div>
-        </div>
-        <div class="canvasWrap">
-          <div class="cv" id="bgCv"><div class="empty" id="bgEmpty"><svg><use href="#i-cut"/></svg><strong data-i="bg_drop"></strong></div><canvas id="bgCanvas" hidden></canvas><div class="cur" id="bgCur" hidden></div><div class="busy" id="bgBusy" hidden><div class="spin"></div><span data-i="bg_working"></span></div></div>
-          <div class="cvbar">
-            <button class="btn sm mbtn on" data-m="view" data-i="bg_view"></button>
-            <button class="btn sm mbtn" data-m="keep" data-i="bg_keep"></button>
-            <button class="btn sm mbtn" data-m="erase" data-i="bg_erase"></button>
-            <span id="brushBox" hidden style="display:flex;align-items:center;gap:8px"><span data-i="bg_brush" style="color:var(--mute);font-size:12.5px"></span><input type="range" id="bgSize" min="4" max="160" value="40" style="width:140px"><label class="toggle" style="align-items:center;gap:8px"><input type="checkbox" id="bgSmart" checked><span class="sw"></span><span style="font-size:12.5px;color:var(--mute)" data-i="bg_smart"></span></label></span>
-            <span class="sp"></span>
-            <button class="btn sm" id="bgUndo" disabled data-i="bg_undo"></button>
-            <button class="btn sm ghost" id="bgClearEd" disabled data-i="bg_clearEd"></button>
-          </div>
-          <div class="hint" id="bgHint" style="padding:0 14px 10px;margin:0"></div>
-        </div>
-        <div class="rpane">
-          <div class="field" style="margin-top:0"><label data-i="bg_bg"></label><div class="seg" id="bgMode" style="grid-auto-flow:row;grid-template-columns:1fr 1fr"><button data-v="none" class="on" data-i="bg_none"></button><button data-v="color" data-i="bg_color"></button><button data-v="blur" data-i="bg_blur"></button><button data-v="image" data-i="bg_image"></button></div></div>
-          <div id="bgColorBox" hidden><div class="pal" id="bgPal"></div></div>
-          <div class="field" id="bgBlurBox" hidden><div class="lbl"><span data-i="bg_blurL"></span><b id="v-blur">45</b></div><input type="range" id="bgBlur" min="1" max="100" value="45"></div>
-          <div id="bgImgBox" hidden><button class="btn sm" id="bgPickImg" style="margin-top:10px;width:100%" data-i="bg_pick"></button></div>
-          <div class="sep"></div>
-          <div class="lbl" style="margin-bottom:4px"><span data-i="bg_edges"></span></div>
-          <div class="field"><div class="lbl"><span data-i="bg_sharp"></span><b id="v-sharp">0</b></div><input type="range" id="bgSharp" min="0" max="100" value="0"></div>
-          <div class="field"><div class="lbl"><span data-i="bg_clean"></span><b id="v-clean">10</b></div><input type="range" id="bgClean" min="0" max="100" value="10"></div>
-          <div class="sep"></div>
-          <label class="toggle"><input type="checkbox" id="bgCrop"><span class="sw"></span><span><b data-i="bg_crop" style="font-size:13.5px"></b></span></label>
-          <div class="field"><label data-i="img_fmt"></label><div class="seg" id="bgFmt"><button data-v="png" class="on">PNG</button><button data-v="webp">WebP</button><button data-v="jpg">JPG</button></div></div>
-          <div class="two" style="margin-top:16px"><button class="btn primary" id="bgSave" disabled data-i="bg_save"></button><button class="btn" id="bgSaveAll" disabled data-i="bg_saveAll"></button></div>
-        </div>
-      </div>
-    </section>
-
     <!-- EXPORTS -->
     <section class="view" id="v-queue" hidden>
       <h1 class="h1" data-i="nav_queue"></h1>
@@ -287,6 +247,5 @@
 <script src="viewer.js"></script>
 <script src="editor.js"></script>
 <script src="images.js"></script>
-<script src="cutout.js"></script>
 </body>
 </html>

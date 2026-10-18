@@ -142,14 +142,8 @@ if (-not (Test-Path "$esr\realesr-general-x4v3.onnx") -or -not (Test-Path "$esr\
   if ($LASTEXITCODE -ne 0) { throw 'export x4plus failed' }
 }
 
-# ---------------------------------------------------------------- BiRefNet (background removal), MIT
-$bg = Join-Path $rt 'models\birefnet'
-New-Item -ItemType Directory -Force $bg | Out-Null
-# full-precision weights: the fp16 conversion lost hair strands and thin parts
-Get-Url 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/BiRefNet-general-epoch_244.onnx' "$bg\birefnet.onnx"
-Remove-Item -Force -ErrorAction SilentlyContinue "$bg\birefnet_fp16.onnx"
-
 # ---------------------------------------------------------------- trim what the app never uses
+Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "$rt\models\birefnet"
 Remove-Item -Force -ErrorAction SilentlyContinue "$ff\ffplay.exe", "$plug\vsort\onnxruntime_providers_cuda.dll"
 Get-ChildItem $rt -Recurse -Include *.pdb, *.lib | Remove-Item -Force -ErrorAction SilentlyContinue
 Get-ChildItem "$vs\Lib\site-packages" -Directory -Recurse -Filter '__pycache__' | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
@@ -168,7 +162,6 @@ $man = [ordered]@{
     photo_x4 = 'models\esrgan\RealESRGAN_x4plus.onnx'
     anime_x4 = (Rel ($an | Where-Object Name -eq 'realesr-animevideov3.onnx' | Select-Object -First 1).FullName)
     anime_x2 = (Rel ($an | Where-Object Name -like '*xsx2.onnx' | Select-Object -First 1).FullName)
-    birefnet = 'models\birefnet\birefnet.onnx'
   }
 }
 $man | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 "$rt\manifest.json"

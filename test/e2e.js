@@ -34,7 +34,6 @@ async function step(name, f) {
   await step('AI preview frame', async () => { const plan = pipeline.buildPlan({ input: src, outPath: path.join(tmp, 'p.png'), preview: true, trim: { start: 1 }, enhance: { upscale: { on: true, model: 'real' } }, output: { res: '720' } }, info, caps); await new Job(2, plan, () => {}).run(tmp); return { size: fs.statSync(path.join(tmp, 'p.png')).size }; });
   const still = path.join(tmp, 'still.png');
   await media.run(P.ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=size=640x480', '-frames:v', '1', still]);
-  await step('image engine: background mask (BiRefNet, CPU)', async () => { const r = await img.call('bg', { src: still, mask: path.join(tmp, 'm.png') }); return { ...r, mask: fs.statSync(path.join(tmp, 'm.png')).size }; });
   await step('image engine: upscale x4 (real, CPU)', async () => img.call('upscale', { src: still, out: path.join(tmp, 'u.png'), model: 'real', scale: 2 }));
   img.stop();
   console.log(fails ? fails + ' e2e step(s) failed' : 'e2e passed');

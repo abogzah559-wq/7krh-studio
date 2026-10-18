@@ -24,7 +24,6 @@ contextBridge.exposeInMainWorld('studio', {
   plan: (o, i) => call('job:plan', o, i),
   start: (o, i) => call('job:start', o, i),
   cancel: id => call('job:cancel', id),
-  removeBg: src => call('img:bg', src),
   upscaleImage: (src, out, model, scale, reqId) => call('img:upscale', src, out, model, scale, reqId),
   warmImage: () => call('img:warm'),
   diag: f => call('diag:run', f),
