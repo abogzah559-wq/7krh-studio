@@ -13,7 +13,7 @@ function components() {
   const P = rt.paths(), r = P.root;
   const rel = p => (p ? path.relative(r, p) : null);
   return [
-    { id: 'ffmpeg', name: 'FFmpeg', use: 'decode_encode', license: 'GPL-3.0', device: 'gpu-encode', files: [rel(P.ffmpeg), rel(P.ffprobe)], required: true },
+    { id: 'ffmpeg', name: 'FFmpeg', use: 'decode_encode', license: 'GPL-3.0', device: 'gpu-encode', files: [rel(path.dirname(P.ffmpeg))], required: true },
     { id: 'python', name: 'Python 3.12 + ONNX Runtime (DirectML)', use: 'image_ai', license: 'PSF / MIT', device: 'gpu-ai', files: [rel(P.python), 'vs/Lib/site-packages/onnxruntime'], required: true },
     { id: 'vapoursynth', name: 'VapourSynth + L-SMASH Works', use: 'video_frames', license: 'LGPL-2.1', device: 'cpu', files: [rel(P.vspipe), rel(P.plugins.lsmas)], required: true },
     { id: 'vsort', name: 'vs-mlrt · ONNX Runtime DirectML', use: 'video_ai', license: 'GPL-3.0', device: 'gpu-ai', bench: 'ort', files: [rel(P.plugins.vsort)] },
@@ -39,6 +39,7 @@ function sizeOf(p) {
 function status(bench, caps) {
   const P = rt.paths(), r = P.root;
   const man = readManifest();
+  if (bench && !(bench.benchVersion >= 4)) bench = null; // results from the broken v3 test are ignored
   const vs = (bench && bench.vs) || {};
   const nvidia = !!(caps && caps.nvidia);
   return components().map(c => {

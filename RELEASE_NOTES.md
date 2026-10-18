@@ -1,4 +1,9 @@
-# 7krh Studio 0.3.0
+# 7krh Studio 0.3.1
+
+- إصلاح اختبار الأداء: كان يظهر «فشل» لكل محركات الفيديو بسبب خطأ في مقطع الاختبار نفسه، والمحركات سليمة. أعد تشغيل الاختبار من الإعدادات.
+- حجم FFmpeg يُحسب كاملًا في مدير المحركات.
+
+## 0.3.0
 
 - **Montage**: a real multi-track timeline (video, overlay, text, music and voice tracks). You can split, trim, move, ripple-delete, duplicate, change speed, play clips in reverse, separate audio, copy and paste effects, and use undo/redo. Keyframes work on position, scale, rotation, opacity and volume. There are seven transitions and Arabic and English text layers. Subtitles import from SRT/ASS and export to SRT. Projects save to `.7krh` files, autosave, and are restored after a crash.
 - **Preview = export**: the preview and the exported file run on the same timeline and colour maths. A test renders the same frames both ways and compares their pixels.

@@ -6,7 +6,7 @@
 
 **مونتاج وتحسين فيديو وصور بالذكاء الاصطناعي — على جهازك وبقوة كرت الشاشة**
 
-[⬇️ تحميل النسخة 0.3.0 (Windows)](https://github.com/abogzah559-wq/7krh-studio/releases/download/v0.3.0-beta/7krh-Studio-Setup-0.3.0.exe) · [الإصدارات](https://github.com/abogzah559-wq/7krh-studio/releases) · [الموقع](https://7krh-hub.pages.dev/ar/) · [☕ اشترِ لي كوب قهوة](https://7krh-hub.pages.dev/ar/support/)
+[⬇️ تحميل النسخة 0.3.1 (Windows)](https://github.com/abogzah559-wq/7krh-studio/releases/download/v0.3.1-beta/7krh-Studio-Setup-0.3.1.exe) · [الإصدارات](https://github.com/abogzah559-wq/7krh-studio/releases) · [الموقع](https://7krh-hub.pages.dev/ar/) · [☕ اشترِ لي كوب قهوة](https://7krh-hub.pages.dev/ar/support/)
 
 </div>
 
@@ -56,7 +56,7 @@
 
 **7krh Studio** is a Windows desktop editor that runs entirely on your PC. It combines a multi-track timeline (keyframes, transitions, Arabic/English text, subtitles, ducking, AI voice denoise), AI video upscaling to 4K (Real-ESRGAN via TensorRT, DirectML or Vulkan), AI frame generation up to 120 fps (RIFE), batch AI image upscaling, and platform delivery identical to the 7krh website's original-quality tool (TikTok Krypton/PATCH disguise, Instagram, YouTube). The preview and the export run on the same maths, and every exported file is checked after encoding.
 
-[Download 0.3.0 for Windows](https://github.com/abogzah559-wq/7krh-studio/releases/download/v0.3.0-beta/7krh-Studio-Setup-0.3.0.exe)
+[Download 0.3.1 for Windows](https://github.com/abogzah559-wq/7krh-studio/releases/download/v0.3.1-beta/7krh-Studio-Setup-0.3.1.exe)
 
 ### Development
 ```

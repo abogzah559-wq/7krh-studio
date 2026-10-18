@@ -391,7 +391,7 @@
     App.view = null; App.go('home');
     loadHist();
     S.caps().then(showCaps).catch(() => {});
-    S.diagCached().then(r => showBench(r && r.benchVersion >= 3 ? r : r || null)).catch(() => showBench(null));
+    S.diagCached().then(r => showBench(r && r.benchVersion >= 4 ? r : null)).catch(() => showBench(null));
     document.dispatchEvent(new CustomEvent('boot'));
   })();
 })();

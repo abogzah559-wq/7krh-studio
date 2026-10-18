@@ -15,7 +15,7 @@ const media = require('./media');
 const pipeline = require('./pipeline');
 const { Job, envFor } = require('./jobs');
 
-const BENCH_VERSION = 3;
+const BENCH_VERSION = 4;
 const HEAD = `
 import json, time, sys, os
 import vapoursynth as vs
@@ -26,8 +26,16 @@ def load(p):
     except vs.Error as e:
         if 'already loaded' not in str(e): raise
 def clip(w, h, n):
-    c = core.std.BlankClip(width=w, height=h, format=vs.RGBS, length=n, fpsnum=30)
-    return core.std.Expr(c, ['X 7 % 0.1 * Y 5 % 0.12 * + N 3 % 0.05 * +'] * 3)
+    # a coloured pattern that changes every frame, built only from basic functions every VapourSynth has
+    def grid(k):
+        rows = []
+        for y in range(4):
+            cols = [core.std.BlankClip(width=16, height=16, format=vs.RGBS, length=1, fpsnum=30,
+                                       color=[((x * 3 + y * 5 + k) % 7) / 7, ((x + y * 2 + k) % 5) / 5, ((x * 2 + y + k) % 3) / 3]) for x in range(4)]
+            rows.append(core.std.StackHorizontal(cols))
+        return core.resize.Bilinear(core.std.StackVertical(rows), w, h)
+    frames = [grid(k) for k in range(3)]
+    return core.std.Splice([frames[i % 3] for i in range(n)])
 def speed(c, n, warm=2):
     t = time.perf_counter()
     for i in range(warm): c.get_frame(i)
@@ -95,7 +103,7 @@ function cached(ud) { try { return JSON.parse(fs.readFileSync(path.join(ud, 'ben
 
 /* fastest working AI upscale engine on this PC (720p working size is the default export case) */
 function bestBackend(ud) {
-  const b = cached(ud); if (!b || !b.vs) return null;
+  const b = cached(ud); if (!b || !b.vs || !(b.benchVersion >= BENCH_VERSION)) return null;
   const sc = n => b.vs[`esrgan_${n}_720p_fps`] || b.vs[`esrgan_${n}_540p_fps`] || 0;
   const order = ['trt', 'ort', 'ncnn'].map(n => [n, sc(n)]).filter(x => x[1] > 0).sort((a, c) => c[1] - a[1]);
   return order.length ? order[0][0] : null;
@@ -154,4 +162,4 @@ async function run(ud, settings, onProgress = () => {}) {
   return report;
 }
 
-module.exports = { run, cached, bestBackend, BENCH_VERSION };
+module.exports = { run, cached, bestBackend, BENCH_VERSION, HEAD, runPy };

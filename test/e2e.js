@@ -42,6 +42,11 @@ async function step(name, f) {
     catch (e) { if (!/GPU-only/.test(e.message)) throw e; return { refused: true }; }
   });
   await step('GPU lists per API (DXGI / Vulkan)', async () => JSON.parse((await media.run(P.python, ['-X', 'utf8', path.join(P.engineDir, 'gpuinfo.py')])).trim()));
+  await step('performance-test clip builder works in the bundled VapourSynth', async () => {
+    const bench = require('../main/bench');
+    const r = await bench.runPy(bench.HEAD + "\nc = clip(1280, 720, 6)\nfor i in range(6): c.get_frame(i)\nres['ok'] = [c.width, c.height, c.num_frames]\nprint('RESULT ' + json.dumps(res))\n", '{}', 120000);
+    if (!r.ok) throw new Error(JSON.stringify(r)); return r;
+  });
   img.stop();
   console.log(fails ? fails + ' e2e step(s) failed' : 'e2e passed');
   process.exit(0);
