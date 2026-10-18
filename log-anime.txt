@@ -1,0 +1,16 @@
+anime animal-2.jpg [1, 3, 1024, 1024]
+done 1.3 s
+anime anime-girl-1.jpg [1, 3, 1024, 1024]
+done 1.2 s
+anime anime-girl-2.jpg [1, 3, 1024, 1024]
+done 1.2 s
+anime car-1.jpg [1, 3, 1024, 1024]
+done 1.2 s
+anime girl-1.jpg [1, 3, 1024, 1024]
+done 1.2 s
+anime girl-3.jpg [1, 3, 1024, 1024]
+done 1.2 s
+anime plants-1.jpg [1, 3, 1024, 1024]
+done 1.3 s
+anime user-anime.jpg [1, 3, 1024, 1024]
+done 1.3 s
