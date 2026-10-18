@@ -94,10 +94,14 @@ const near = (a, b, tol = 40) => a.every((v, i) => Math.abs(v - b[i]) <= tol);
   // WebM / VP9 + bitrate mode + soft subtitles
   p.tracks.find(t => t.id === 'T1').sub = true;
   const wout = path.join(tmp, 'o.webm');
+  console.log('… WebM step: building plan');
   const wplan = render.buildTimelinePlan(p, { outPath: wout, output: { container: 'webm', codec: 'vp9', quality: 'balanced', rate: { mode: 'bitrate', mbps: 2 }, softSubs: true } }, caps);
   wplan.steps.push({ kind: 'verify', file: wout, expectDur: total, w: W, h: H, audio: true });
+  wplan.stallSecs = 60;
+  console.log('… WebM step: running', wplan.steps[0].ffmpeg.slice(-12).join(' '));
   try { const v = await new Job(3, wplan, () => {}, null, { platform, verify: media.verifyOutput }).run(tmp); check('WebM VP9 bitrate + soft subtitles', v.verify.ok, JSON.stringify(v.verify)); }
   catch (e) { check('WebM VP9', false, String(e.message).slice(0, 800)); }
+  console.log('… WebM step: probing');
   const sp3 = JSON.parse(X(P.ffprobe, ['-v', 'error', '-show_streams', '-of', 'json', wout])).streams.map(s => s.codec_type);
   check('subtitle stream muxed', sp3.includes('subtitle'), sp3.join(','));
 

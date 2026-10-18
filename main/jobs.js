@@ -81,7 +81,17 @@ class Job {
   spawn(cmd, args, opts = {}) {
     const p = spawn(cmd, args, { windowsHide: true, env: envFor(), ...opts });
     this.procs.push(p);
-    p.stderr && p.stderr.on('data', d => String(d).split(/\r?\n/).forEach(l => l.trim() && this.logLine(path.basename(cmd) + ': ' + l)));
+    this.alive = Date.now();
+    const beat = () => { this.alive = Date.now(); };
+    p.stderr && p.stderr.on('data', d => { beat(); String(d).split(/\r?\n/).forEach(l => l.trim() && this.logLine(path.basename(cmd) + ': ' + l)); });
+    p.stdout && p.stdout.on('data', beat);
+    // watchdog: a process that prints nothing (no progress, no error) for too long is stuck — stop it and say so
+    const limit = this.plan.stallSecs || 300;
+    const wd = setInterval(() => {
+      if (p.exitCode != null) return clearInterval(wd);
+      if ((Date.now() - this.alive) / 1000 > limit) { clearInterval(wd); this.stalled = path.basename(cmd); this.logLine(`${this.stalled}: no output for ${limit}s — stopped`); killTree(p); }
+    }, 5000);
+    p.on('close', () => clearInterval(wd));
     return p;
   }
 
@@ -124,7 +134,7 @@ class Job {
         if (!st.post) this.progressReader(ff.stdout, stTotal, 0.97 / mainSteps, i * 0.97 / mainSteps);
         const c = await this.waitExit(ff);
         if (this.cancelled) throw new Error('cancelled');
-        if (c !== 0) throw new Error(`ffmpeg failed (${c})\n` + this.log.slice(-25).join('\n'));
+        if (c !== 0) throw new Error((this.stalled ? `ffmpeg stopped responding` : `ffmpeg failed (${c})`) + '\n' + this.log.slice(-25).join('\n'));
         if (!st.post) i++;
       } else if (st.kind === 'patch') {
         this.emit({ type: 'phase', phase: 'platform' });
