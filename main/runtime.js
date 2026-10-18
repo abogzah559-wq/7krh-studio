@@ -35,7 +35,7 @@ function paths() {
   const r = root();
   let man = {};
   try { man = JSON.parse(fs.readFileSync(path.join(r, 'manifest.json'), 'utf8')); } catch (e) {}
-  const abs = p => (p ? path.join(r, p) : null);
+  const abs = p => (p ? (path.isAbsolute(p) ? p : path.join(r, p)) : null);
   const m = man.models || {};
   cache = {
     root: r,

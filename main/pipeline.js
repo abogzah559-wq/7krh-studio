@@ -174,6 +174,27 @@ function cropFilter(crop, w, h) {
   return { filter: `crop=${cw}:${ch}`, w: cw, h: ch };
 }
 
+/* ---------------------------------------------------------------- colour */
+/* Decides how colour is carried to the output:
+   - HDR (PQ / HLG) source + 10-bit HEVC/AV1 output → kept as HDR (BT.2020 tags, same transfer)
+   - HDR source + SDR output (H.264, 8-bit) → tone-mapped to BT.709 (zimg + hable), never just re-tagged
+   - SD sources in BT.601 → converted to BT.709 (they were only re-tagged before, which shifts colours) */
+function colorPlan(info, enc, codec) {
+  const trc = info.colorTransfer || '';
+  const hdr = /smpte2084|arib-std-b67/.test(trc);
+  const [w0, h0] = rotatedSize(info);
+  const cs = info.colorSpace || '';
+  const src601 = /smpte170m|bt470bg|bt601/.test(cs) || (!cs && !hdr && (h0 <= 576 && w0 <= 1024));
+  const keepHdr = hdr && enc.tenBit && codec !== 'h264';
+  const tonemap = hdr && !keepHdr;
+  const tin = trc.includes('arib') ? 'arib-std-b67' : 'smpte2084';
+  const tags = keepHdr ? ['-color_primaries', 'bt2020', '-color_trc', trc.includes('arib') ? 'arib-std-b67' : 'smpte2084', '-colorspace', 'bt2020nc']
+    : ['-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709'];
+  // ffmpeg filter that lands the decoded (or y4m) frames in the output colour space
+  const tm = `zscale=tin=${tin}:min=bt2020nc:pin=bt2020:t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv`;
+  return { hdr, keepHdr, tonemap, src601, tags, tonemapFilter: tm, vsMatrixOut: hdr ? '2020ncl' : '709' };
+}
+
 /* ---------------------------------------------------------------- VapourSynth script */
 function vpyScript(p) {
   // p: { src, cache, start, end, rotation, matrix, up:{model, scale, backend}, fg:{model, num, den}, outW, outH, tenBit, plugins, models }
@@ -236,7 +257,7 @@ function vpyScript(p) {
   };
   if (p.fg && !p.up) { rife(); resize(); }
   else { resize(); if (p.fg) rife(); }
-  L.push(`out = core.resize.Bicubic(rgb, format=${p.tenBit ? 'vs.YUV420P10' : 'vs.YUV420P8'}, matrix_s="709", dither_type="error_diffusion")`);
+  L.push(`out = core.resize.Bicubic(rgb, format=${p.tenBit ? 'vs.YUV420P10' : 'vs.YUV420P8'}, matrix_s="${p.matrixOut || '709'}", dither_type="error_diffusion")`);
   L.push('out.set_output()');
   return L.join('\n') + '\n';
 }
@@ -256,6 +277,7 @@ function vpyScript(p) {
 */
 function buildPlan(opts, info, caps) {
   const P = caps.paths;
+  if (opts.output && opts.output.mode === 'copy' && !opts.preview) return copyPlan(opts, info, caps);
   const srcFps = parseRate(info.fps) || 30;
   const dur = num(info.duration, 0);
   const start = clamp(num(opts.trim && opts.trim.start, 0), 0, dur || 1e9);
@@ -307,6 +329,7 @@ function buildPlan(opts, info, caps) {
 
   const enhance = !!(fg || up);
   const enc = pickEncoder(out.codec || 'hevc', caps, !!out.tenBit);
+  const col = colorPlan(info, enc, out.codec || 'hevc');
   const vf = [];
   const af = [];
   const ff = [P.ffmpeg, '-hide_banner', '-nostdin', '-y', '-loglevel', 'error', '-progress', 'pipe:1', '-stats_period', '0.5'];
@@ -319,7 +342,7 @@ function buildPlan(opts, info, caps) {
       src: opts.input, cache: caps.lwi || (caps.tmp + '\\src.lwi'), start, end, rotation: num(info.rotation, 0), matrix,
       fpsNum: fraction(srcFps)[0], fpsDen: fraction(srcFps)[1],
       crop: crop ? { w: crop.w, h: crop.h, x: Math.floor((w0 - crop.w) / 4) * 2, y: Math.floor((h0 - crop.h) / 4) * 2 } : null,
-      fg, up, outW: W, outH: H, tenBit: enc.tenBit, gpu: num(caps.gpu, -1), srcW: cw, srcH: ch, engines: caps.engines || (caps.tmp + '\\engines'),
+      fg, up, outW: W, outH: H, tenBit: enc.tenBit || col.hdr, matrixOut: col.vsMatrixOut, gpu: num(caps.gpu, -1), srcW: cw, srcH: ch, engines: caps.engines || (caps.tmp + '\\engines'),
       plugins: P.plugins,
     });
     const [rn, rd] = fraction(fpsBeforeSpeed);
@@ -327,7 +350,8 @@ function buildPlan(opts, info, caps) {
   } else {
     ff.push('-ss', start.toFixed(3), '-to', end.toFixed(3), '-i', opts.input);
     if (crop) vf.push(crop.filter);
-    if (W !== cw || H !== ch) vf.push(`scale=${W}:${H}:flags=lanczos+accurate_rnd+full_chroma_int`);
+    if (col.tonemap) vf.push(`zscale=w=${W}:h=${H}:f=spline36`);
+    else if (W !== cw || H !== ch || col.src601) vf.push(`scale=${W}:${H}:flags=lanczos+accurate_rnd+full_chroma_int` + (col.src601 ? ':in_color_matrix=bt601:out_color_matrix=bt709' : ''));
   }
   // audio inputs
   const am = (opts.audio && opts.audio.mode) || 'keep';
@@ -345,11 +369,12 @@ function buildPlan(opts, info, caps) {
 
   // video filters common to both paths
   if (speed !== 1) vf.push(`setpts=PTS/${speed}`);
+  if (col.tonemap) vf.push(col.tonemapFilter);
   const eq = eqFilter(opts.adjust); if (eq) vf.push(eq);
   const sh = sharpenFilter(opts.adjust); if (sh) vf.push(sh);
   const fpsAfterSpeed = fpsBeforeSpeed * speed;
   if (Math.abs(fpsAfterSpeed - outFps) / outFps > 0.002) vf.push(`fps=${fraction(outFps).join('/')}`);
-  if (!enhance) vf.push(`format=${enc.tenBit ? 'yuv420p10le' : 'yuv420p'}`);
+  if (!enhance || col.tonemap || (col.hdr && !enc.tenBit)) vf.push(`format=${enc.tenBit ? 'yuv420p10le' : 'yuv420p'}`);
 
   // audio graph
   const vol = clamp(num(opts.audio && opts.audio.volume, 1), 0, 4);
@@ -377,7 +402,7 @@ function buildPlan(opts, info, caps) {
   ff.push(...encoderArgs(enc, out.quality || 'high', outFps, W, H));
   ff.push('-g', String(Math.round(outFps * 2)));
   if (aMap) ff.push('-c:a', 'aac', '-b:a', '320k', '-ar', '48000');
-  ff.push('-t', segDur.toFixed(3), '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709');
+  ff.push('-t', segDur.toFixed(3), ...col.tags);
   ff.push('-movflags', '+faststart', '-map_metadata', '-1', '-metadata', 'encoder=7krh Studio');
 
   if (opts.preview) {
@@ -402,21 +427,68 @@ function buildPlan(opts, info, caps) {
   let kfactor = 1;
   if (needKrypton) {
     kfactor = kryptonFactor(outFps, opts.kryptonMode || 'auto');
-    if (kfactor > 1) {
-      steps.push({ kind: 'ffmpeg', post: true, ffmpeg: [P.ffmpeg, '-hide_banner', '-nostdin', '-y', '-loglevel', 'error', '-itsscale', String(kfactor), '-i', encOut, '-c:v', 'copy', '-c:a', 'copy', '-movflags', '+faststart', opts.outPath] });
-    } else {
-      steps.push({ kind: 'move', from: encOut, to: opts.outPath });
-    }
+    if (kfactor > 1) steps.push(platformStep(P, opts.tiktokTech, kfactor, encOut, opts.outPath));
+    else steps.push({ kind: 'move', from: encOut, to: opts.outPath });
   }
+  steps.push({ kind: 'verify', file: opts.outPath, expect: { dur: segDur * kfactor, w: W, h: H, audio: !!aMap } });
 
   return {
     steps,
     enhance,
     encoder: enc.name,
     expect: { frames: Math.max(1, Math.round(segDur * outFps)), fps: outFps, w: W, h: H, dur: segDur, kfactor, finalDur: segDur * kfactor },
+    color: { hdr: col.hdr, keepHdr: col.keepHdr, tonemap: col.tonemap, src601: col.src601 },
     up: up ? { scale: up.scale, backend: up.backend, inW: up.inW, inH: up.inH } : null,
     fg: fg ? { num: fg.num, den: fg.den } : null,
   };
 }
 
-module.exports = { buildPlan, targetSize, upscaleFactor, aiInputSize, kryptonFactor, pickEncoder, encoderArgs, fraction, parseRate, atempoChain, eqFilter, vpyScript, rotatedSize, RIFE };
+/* TikTok disguise, the two techniques of the site's tool:
+   krypton = ffmpeg -itsscale k + stream copy (re-wraps the file, exactly the Krypton command)
+   patch   = header-only edit of the timescales (no remux, every byte of the samples untouched) */
+function platformStep(P, tech, k, from, to) {
+  if (tech === 'patch') return { kind: 'patch', post: true, from, to, k };
+  return { kind: 'ffmpeg', post: true, ffmpeg: [P.ffmpeg, '-hide_banner', '-nostdin', '-y', '-loglevel', 'error', '-itsscale', String(k), '-i', from, '-c:v', 'copy', '-c:a', 'copy', to] };
+}
+
+/* "No re-encoding" mode of the site's tool: quality identical to the original, takes seconds.
+   Instagram / YouTube / normal: plain stream copy + fast start. TikTok: Krypton or PATCH disguise. */
+function copyPlan(opts, info, caps) {
+  const P = caps.paths;
+  const srcFps = parseRate(info.fps) || 30;
+  const dur = num(info.duration, 0);
+  const [w, h] = rotatedSize(info);
+  const platform = opts.platform || 'self';
+  const steps = [];
+  let k = 1;
+  if (platform === 'tiktok') {
+    k = kryptonFactor(srcFps, opts.kryptonMode || 'auto');
+    if (!(k > 1)) throw new Error('lowFps');
+    steps.push({ ...platformStep(P, opts.tiktokTech, k, opts.input, opts.outPath), post: false });
+  } else {
+    steps.push({ kind: 'ffmpeg', ffmpeg: [P.ffmpeg, '-hide_banner', '-nostdin', '-y', '-loglevel', 'error', '-i', opts.input, '-c:v', 'copy', '-c:a', 'copy', '-movflags', '+faststart', opts.outPath] });
+  }
+  steps.push({ kind: 'verify', file: opts.outPath, expect: { dur: dur * k, w, h, audio: !!info.hasAudio } });
+  return {
+    steps, enhance: false, copy: true, encoder: 'copy',
+    expect: { frames: Math.max(1, Math.round(dur * srcFps)), fps: srcFps, w, h, dur, kfactor: k, finalDur: dur * k },
+    up: null, fg: null,
+  };
+}
+
+/* Copy mode is only honest when nothing would change the picture or sound. */
+function canCopy(opts, info) {
+  const d = num(info.duration, 0);
+  const tr = opts.trim || {};
+  const a = opts.adjust || {};
+  const o = opts.output || {};
+  const en = opts.enhance || {};
+  return !(num(tr.start, 0) > 0.01 || (tr.end != null && d && num(tr.end, d) < d - 0.05)) && num(opts.speed, 1) === 1 &&
+    (!opts.crop || opts.crop === 'none') && !Object.values(a).some(v => +v) &&
+    (!opts.audio || !opts.audio.mode || opts.audio.mode === 'keep') && !(opts.audio && opts.audio.volume != null && +opts.audio.volume !== 1) &&
+    (!o.res || o.res === 'source') && (!o.fps || o.fps === 'source') &&
+    !(en.upscale && en.upscale.on) && !(en.framegen && en.framegen.on) &&
+    /^(h264|hevc|av1|mpeg4)$/.test(info.vcodec || '') && /\.(mp4|mov|m4v)$/i.test(opts.input || '');
+}
+
+module.exports = { colorPlan, copyPlan, canCopy, platformStep, buildPlan, targetSize, upscaleFactor, aiInputSize, kryptonFactor, pickEncoder, encoderArgs, fraction, parseRate, atempoChain, eqFilter, vpyScript, rotatedSize, RIFE };

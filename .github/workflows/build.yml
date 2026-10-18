@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, studio-v3]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -51,6 +51,10 @@ jobs:
       - name: Unit tests (pipeline builder)
         shell: pwsh
         run: node test/run.js *>&1 | Tee-Object -FilePath ci-logs/3-tests.txt
+
+      - name: End-to-end (exports, platform techniques, colour)
+        shell: pwsh
+        run: node test/e2e-ffmpeg.js *>&1 | Tee-Object -FilePath ci-logs/3a-e2e-ffmpeg.txt
 
       - name: End-to-end (real engines, CPU)
         shell: pwsh

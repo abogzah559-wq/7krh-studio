@@ -4,12 +4,13 @@ const { spawn, execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const rt = require('./runtime');
+const mp4patch = require('./mp4patch');
 
 function envFor() {
   const P = rt.paths();
   const vsDir = path.dirname(P.python);
   const env = { ...process.env };
-  env.PATH = [vsDir, path.join(vsDir, 'vs-plugins'), path.dirname(P.ffmpeg), env.PATH || ''].join(';');
+  env.PATH = [vsDir, path.join(vsDir, 'vs-plugins'), path.dirname(P.ffmpeg), env.PATH || ''].join(path.delimiter);
   env.PYTHONIOENCODING = 'utf-8';
   env.PYTHONNOUSERSITE = '1';
   delete env.PYTHONHOME; delete env.PYTHONPATH;
@@ -84,7 +85,7 @@ class Job {
 
   async _run(tmp) {
     const total = this.plan.expect.frames;
-    const mainSteps = this.plan.steps.filter(s => !s.post && s.kind !== 'move').length || 1;
+    const mainSteps = this.plan.steps.filter(s => !s.post && !/^(move|verify)$/.test(s.kind)).length || 1;
     let i = 0;
     for (const st of this.plan.steps) {
       if (this.cancelled) throw new Error('cancelled');
@@ -111,6 +112,17 @@ class Job {
         if (this.cancelled) throw new Error('cancelled');
         if (c !== 0) throw new Error(`ffmpeg failed (${c})\n` + this.log.slice(-25).join('\n'));
         if (!st.post) i++;
+      } else if (st.kind === 'patch') {
+        this.emit({ type: 'phase', phase: 'platform' });
+        const r = mp4patch.patch(st.from, st.to, st.k);
+        this.logLine(`patch x${st.k}: ${r.before.toFixed(3)}s -> ${r.dur.toFixed(3)}s`);
+        if (st.from !== st.to && st.post) try { fs.unlinkSync(st.from); } catch (e) {}
+        if (!st.post) i++;
+      } else if (st.kind === 'verify') {
+        this.emit({ type: 'phase', phase: 'verify' });
+        this.verified = await verifyOutput(st.file, st.expect);
+        this.logLine('verify ' + JSON.stringify(this.verified));
+        if (!this.verified.ok) throw new Error('verify failed: ' + this.verified.problems.join('; '));
       } else if (st.kind === 'move') {
         try { fs.renameSync(st.from, st.to); } catch (e) { fs.copyFileSync(st.from, st.to); fs.unlinkSync(st.from); }
       }
@@ -119,4 +131,19 @@ class Job {
   }
 }
 
-module.exports = { Job, envFor, killTree };
+/* Opens the finished file and checks it is what was promised: it plays (has a video stream), the duration
+   (5% like the site's tool), the size, and the sound. A failed check is an error, never a silent success. */
+async function verifyOutput(file, ex) {
+  const media = require('./media');
+  const problems = [];
+  let o = null;
+  try { o = await media.probe(file); } catch (e) { return { ok: false, problems: ['unreadable: ' + String(e.message || e).slice(0, 200)] }; }
+  if (o.kind !== 'video' && o.kind !== 'image') problems.push('no video stream');
+  const w = o.rotation % 180 ? o.height : o.width, h = o.rotation % 180 ? o.width : o.height;
+  if (ex.w && ex.h && (w !== ex.w || h !== ex.h)) problems.push(`size ${w}x${h} (expected ${ex.w}x${ex.h})`);
+  if (ex.dur > 0.2 && Math.abs(o.duration - ex.dur) / ex.dur > 0.05) problems.push(`duration ${o.duration.toFixed(2)}s (expected ${ex.dur.toFixed(2)}s)`);
+  if (ex.audio && !o.hasAudio) problems.push('audio missing');
+  return { ok: !problems.length, problems, w, h, dur: o.duration, fps: o.fps, audio: o.hasAudio, vcodec: o.vcodec, size: o.size };
+}
+
+module.exports = { Job, envFor, killTree, verifyOutput };

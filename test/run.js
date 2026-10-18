@@ -25,7 +25,7 @@ t('krypton factor (same rule as the site)', () => {
 });
 t('plain export: ffmpeg only, nvenc hevc, no krypton for self', () => {
   const pl = P.buildPlan({ input: 'in.mp4', outPath: 'out.mp4', output: { res: 'source', fps: 'source', codec: 'hevc', quality: 'high' }, platform: 'self' }, info, caps);
-  assert.strictEqual(pl.steps.length, 1); assert.strictEqual(pl.steps[0].kind, 'ffmpeg');
+  assert.strictEqual(pl.steps.length, 2); assert.strictEqual(pl.steps[0].kind, 'ffmpeg'); assert.strictEqual(pl.steps[1].kind, 'verify');
   const a = pl.steps[0].ffmpeg.join(' ');
   assert(a.includes('hevc_nvenc') && a.includes('-tag:v hvc1') && a.endsWith('out.mp4'), a);
   assert.strictEqual(pl.expect.w, 1920); assert.ok(Math.abs(pl.expect.fps - 29.97) < 0.01);
@@ -75,5 +75,47 @@ t('frame generation only: RIFE at source size before resize', () => {
 t('TensorRT backend script', () => {
   const pl = P.buildPlan({ input: 'in.mp4', outPath: 'o.mp4', enhance: { upscale: { on: true } }, output: { res: '2160' } }, info, { ...caps, upBackend: 'trt', engines: 'E:\\eng' });
   assert(pl.steps[0].vpy.includes('Backend.TRT_RTX(fp16=True') && pl.steps[0].vpy.includes('engine_folder=r"E:\\eng"'), pl.steps[0].vpy);
+});
+t('copy mode = site tool: instagram plain copy + faststart, verified', () => {
+  const pl = P.buildPlan({ input: 'in.mp4', outPath: 'o.mp4', output: { mode: 'copy' }, platform: 'instagram' }, { ...info, vcodec: 'h264' }, caps);
+  const a = pl.steps[0].ffmpeg.join(' ');
+  assert(a.includes('-i in.mp4 -c:v copy -c:a copy -movflags +faststart o.mp4'), a);
+  assert.strictEqual(pl.steps[1].kind, 'verify'); assert.strictEqual(pl.encoder, 'copy');
+});
+t('copy mode tiktok krypton: exact Krypton command (itsscale, copy, no faststart)', () => {
+  const pl = P.buildPlan({ input: 'in.mp4', outPath: 'o.mp4', output: { mode: 'copy' }, platform: 'tiktok' }, { ...info, fps: '60/1' }, caps);
+  assert.strictEqual(pl.steps[0].ffmpeg.join(' '), 'ffmpeg.exe -hide_banner -nostdin -y -loglevel error -itsscale 2 -i in.mp4 -c:v copy -c:a copy o.mp4');
+  assert.strictEqual(pl.expect.finalDur, 20);
+});
+t('copy mode tiktok PATCH + "to 30" rule on 120 fps', () => {
+  const pl = P.buildPlan({ input: 'in.mp4', outPath: 'o.mp4', output: { mode: 'copy' }, platform: 'tiktok', tiktokTech: 'patch', kryptonMode: 'to30' }, { ...info, fps: '120/1' }, caps);
+  assert.deepStrictEqual([pl.steps[0].kind, pl.steps[0].k], ['patch', 4]);
+});
+t('copy mode tiktok on 30 fps with "to 30" → lowFps like the site', () => {
+  assert.throws(() => P.buildPlan({ input: 'in.mp4', outPath: 'o.mp4', output: { mode: 'copy' }, platform: 'tiktok', kryptonMode: 'to30' }, { ...info, fps: '30/1' }, caps), /lowFps/);
+});
+t('canCopy only when nothing changes picture or sound', () => {
+  const vi = { ...info, vcodec: 'h264' };
+  assert.strictEqual(P.canCopy({ input: 'a.mp4', output: { res: 'source', fps: 'source' }, enhance: { upscale: { on: false } } }, vi), true);
+  assert.strictEqual(P.canCopy({ input: 'a.mp4', trim: { start: 2, end: 10 } }, vi), false);
+  assert.strictEqual(P.canCopy({ input: 'a.mp4', adjust: { brightness: 5 } }, vi), false);
+  assert.strictEqual(P.canCopy({ input: 'a.mkv' }, vi), false);
+});
+t('HDR source: kept as HDR in 10-bit HEVC, tone-mapped for H.264', () => {
+  const hi = { ...info, colorTransfer: 'smpte2084', colorSpace: 'bt2020nc' };
+  const keep = P.buildPlan({ input: 'in.mp4', outPath: 'o.mp4', output: { codec: 'hevc', tenBit: true } }, hi, caps).steps[0].ffmpeg.join(' ');
+  assert(keep.includes('-color_trc smpte2084') && keep.includes('-colorspace bt2020nc') && !keep.includes('tonemap'), keep);
+  const tm = P.buildPlan({ input: 'in.mp4', outPath: 'o.mp4', output: { codec: 'h264' } }, hi, caps).steps[0].ffmpeg.join(' ');
+  assert(tm.includes('tonemap=tonemap=hable') && tm.includes('-color_trc bt709'), tm);
+  const ai = P.buildPlan({ input: 'in.mp4', outPath: 'o.mp4', enhance: { upscale: { on: true } }, output: { codec: 'h264', res: '2160' } }, hi, caps);
+  assert(ai.steps[0].vpy.includes('vs.YUV420P10') && ai.steps[0].vpy.includes('matrix_s="2020ncl"') && ai.steps[0].ffmpeg.join(' ').includes('tonemap'), 'AI path tone-maps after VapourSynth');
+});
+t('SD BT.601 source is converted to BT.709, not just re-tagged', () => {
+  const a = P.buildPlan({ input: 'in.mp4', outPath: 'o.mp4', output: { codec: 'h264' } }, { ...info, width: 720, height: 480, colorSpace: 'smpte170m' }, caps).steps[0].ffmpeg.join(' ');
+  assert(a.includes('in_color_matrix=bt601:out_color_matrix=bt709'), a);
+});
+t('encode + tiktok PATCH technique', () => {
+  const pl = P.buildPlan({ input: 'in.mp4', outPath: 'o.mp4', output: { fps: 60, codec: 'h264' }, platform: 'tiktok', tiktokTech: 'patch' }, { ...info, fps: '60/1' }, caps);
+  assert.deepStrictEqual(pl.steps.map(s => s.kind), ['ffmpeg', 'patch', 'verify']);
 });
 console.log(n, 'tests passed');
