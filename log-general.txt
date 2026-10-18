@@ -1,0 +1,16 @@
+general animal-2.jpg [1, 3, 1024, 1024]
+done 20.7 s
+general anime-girl-1.jpg [1, 3, 1024, 1024]
+done 21.0 s
+general anime-girl-2.jpg [1, 3, 1024, 1024]
+done 21.0 s
+general car-1.jpg [1, 3, 1024, 1024]
+done 20.8 s
+general girl-1.jpg [1, 3, 1024, 1024]
+done 20.8 s
+general girl-3.jpg [1, 3, 1024, 1024]
+done 20.9 s
+general plants-1.jpg [1, 3, 1024, 1024]
+done 21.0 s
+general user-anime.jpg [1, 3, 1024, 1024]
+done 20.8 s
