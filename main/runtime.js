@@ -54,7 +54,7 @@ function paths() {
     models: {
       ...Object.fromEntries(Object.entries(m).map(([k, v]) => [k, abs(v)])),
       real_x2: abs(m.real_x2), real_x4: abs(m.real_x4), anime_x2: abs(m.anime_x2), anime_x4: abs(m.anime_x4),
-      photo_x4: abs(m.photo_x4), birefnet: abs(m.birefnet) || path.join(r, 'models', 'birefnet', 'birefnet.onnx'),
+      photo_x4: abs(m.photo_x4),
       rifeDir: path.join(r, 'models', 'rife'),
     },
     engineDir: path.join(__dirname, '..', 'engine').replace('app.asar', 'app.asar.unpacked'),
@@ -64,7 +64,7 @@ function paths() {
 
 function status() {
   const p = paths();
-  const check = { ffmpeg: p.ffmpeg, python: p.python, vspipe: p.vspipe, lsmas: p.plugins.lsmas, rife: p.plugins.rife, birefnet: p.models.birefnet, upscale: p.models.real_x4 };
+  const check = { ffmpeg: p.ffmpeg, python: p.python, vspipe: p.vspipe, lsmas: p.plugins.lsmas, rife: p.plugins.rife, upscale: p.models.real_x4, photo: p.models.photo_x4 };
   const out = {};
   for (const [k, v] of Object.entries(check)) out[k] = !!(v && fs.existsSync(v));
   out.ok = Object.values(out).every(Boolean);
@@ -72,4 +72,7 @@ function status() {
   return out;
 }
 
-module.exports = { root, paths, status, findFile };
+/* tests on machines without the Windows runtime: point the tools somewhere else */
+function override(o) { cache = { ...paths(), ...o, plugins: { ...paths().plugins, ...(o.plugins || {}) }, models: { ...paths().models, ...(o.models || {}) } }; return cache; }
+
+module.exports = { root, paths, status, findFile, override };

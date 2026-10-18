@@ -6,9 +6,11 @@
    - "enhance" (AI upscale and/or AI frame generation) runs through VapourSynth:
        vspipe (y4m) | ffmpeg (filters + audio + encode)
    - otherwise ffmpeg alone does trim/speed/adjust/scale/encode.
-   - platform post-processing (TikTok "Krypton" duration trick) is a final stream-copy step. */
+   - platform delivery (TikTok disguise, as on the website) is planned separately in platform.js. */
 
+const { yuvColorChain } = require('./colorff');
 const even = n => Math.max(2, Math.round(n / 2) * 2);
+const normAdj = a => (!a ? {} : { b: a.b ?? a.brightness ?? 0, c: a.c ?? a.contrast ?? 0, s: a.s ?? a.saturation ?? 0, g: a.g ?? a.gamma ?? 0, sh: a.sh ?? a.sharpen ?? 0 });
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const num = (v, d) => (Number.isFinite(+v) ? +v : d);
 
@@ -81,14 +83,6 @@ function fraction(x, maxDen = 1001) {
   return [bestN, bestD];
 }
 
-/* ---------------------------------------------------------------- Krypton (TikTok) */
-function kryptonFactor(fps, mode = 'auto') {
-  if (mode === 'to30') { let k = fps / 30; if (Math.abs(k - Math.round(k)) < 0.02 * k) k = Math.round(k); return k > 1 ? k : 1; }
-  if (mode !== 'auto') return +mode || 1;
-  const k = fps >= 110 ? 6 : 2;
-  return fps / k > 30.5 ? Math.ceil(fps / 30) : k;
-}
-
 /* ---------------------------------------------------------------- encoders */
 /* caps.encoders: Set-like array of encoder names that passed a real test encode on this PC */
 function pickEncoder(codec, caps, tenBit) {
@@ -145,22 +139,6 @@ function atempoChain(speed) {
   while (s < 0.4999) { out.push('atempo=0.5'); s /= 0.5; }
   if (Math.abs(s - 1) > 1e-4) out.push('atempo=' + s.toFixed(5));
   return out;
-}
-function eqFilter(adj) {
-  if (!adj) return null;
-  const b = clamp(num(adj.brightness, 0), -100, 100), c = clamp(num(adj.contrast, 0), -100, 100), s = clamp(num(adj.saturation, 0), -100, 100);
-  const g = clamp(num(adj.gamma, 0), -100, 100);
-  if (!b && !c && !s && !g) return null;
-  const parts = [];
-  if (b) parts.push('brightness=' + (b / 100 * 0.25).toFixed(4));
-  if (c) parts.push('contrast=' + (1 + c / 100 * 0.6).toFixed(4));
-  if (s) parts.push('saturation=' + (1 + s / 100).toFixed(4));
-  if (g) parts.push('gamma=' + (1 + g / 100 * 0.6).toFixed(4));
-  return 'eq=' + parts.join(':');
-}
-function sharpenFilter(adj) {
-  const v = clamp(num(adj && adj.sharpen, 0), 0, 100);
-  return v ? `cas=strength=${(v / 100 * 0.9).toFixed(3)}` : null;
 }
 function cropFilter(crop, w, h) {
   // center crop to an aspect ratio, before scaling
@@ -345,8 +323,8 @@ function buildPlan(opts, info, caps) {
 
   // video filters common to both paths
   if (speed !== 1) vf.push(`setpts=PTS/${speed}`);
-  const eq = eqFilter(opts.adjust); if (eq) vf.push(eq);
-  const sh = sharpenFilter(opts.adjust); if (sh) vf.push(sh);
+  // colour: identical maths to the editor preview (see colorff.js); accepts the old {brightness,…} keys too
+  vf.push(...yuvColorChain(normAdj(opts.adjust), enhance ? { colorSpace: 'bt709' } : info));
   const fpsAfterSpeed = fpsBeforeSpeed * speed;
   if (Math.abs(fpsAfterSpeed - outFps) / outFps > 0.002) vf.push(`fps=${fraction(outFps).join('/')}`);
   if (!enhance) vf.push(`format=${enc.tenBit ? 'yuv420p10le' : 'yuv420p'}`);
@@ -391,23 +369,12 @@ function buildPlan(opts, info, caps) {
     return { steps: [enhance ? { kind: 'pipe', vpy, vspipe: [P.vspipe, '-c', 'y4m', '-e', '0', '{VPY}', '-'], ffmpeg: pf } : { kind: 'ffmpeg', ffmpeg: pf }],
       enhance, preview: true, expect: { frames: 1, fps: outFps, w: W, h: H, dur: 0, kfactor: 1, finalDur: 0 } };
   }
-  const platform = opts.platform || 'self';
-  const needKrypton = platform === 'tiktok';
-  const encOut = needKrypton ? caps.tmp + '\\encoded.mp4' : opts.outPath;
-  ff.push(encOut);
+  // platform delivery (TikTok disguise etc.) is added by main/platform.js after the encode
+  ff.push(opts.outPath);
 
   if (enhance) steps.push({ kind: 'pipe', vpy, vspipe: [P.vspipe, '-c', 'y4m', '{VPY}', '-'], ffmpeg: ff });
   else steps.push({ kind: 'ffmpeg', ffmpeg: ff });
-
-  let kfactor = 1;
-  if (needKrypton) {
-    kfactor = kryptonFactor(outFps, opts.kryptonMode || 'auto');
-    if (kfactor > 1) {
-      steps.push({ kind: 'ffmpeg', post: true, ffmpeg: [P.ffmpeg, '-hide_banner', '-nostdin', '-y', '-loglevel', 'error', '-itsscale', String(kfactor), '-i', encOut, '-c:v', 'copy', '-c:a', 'copy', '-movflags', '+faststart', opts.outPath] });
-    } else {
-      steps.push({ kind: 'move', from: encOut, to: opts.outPath });
-    }
-  }
+  const kfactor = 1;
 
   return {
     steps,
@@ -419,4 +386,4 @@ function buildPlan(opts, info, caps) {
   };
 }
 
-module.exports = { buildPlan, targetSize, upscaleFactor, aiInputSize, kryptonFactor, pickEncoder, encoderArgs, fraction, parseRate, atempoChain, eqFilter, vpyScript, rotatedSize, RIFE };
+module.exports = { buildPlan, targetSize, upscaleFactor, aiInputSize, pickEncoder, encoderArgs, fraction, parseRate, atempoChain, vpyScript, rotatedSize, RIFE };

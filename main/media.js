@@ -52,6 +52,9 @@ async function probe(file) {
     hdr: !!(v && /smpte2084|arib-std-b67/.test(v.color_transfer || '')),
     hasAudio: !!a, acodec: a ? a.codec_name : null, bitrate: +(j.format && j.format.bit_rate) || 0,
     frames: v && v.nb_frames ? +v.nb_frames : 0,
+    fpsNum: v ? (() => { const r = String(fps).split('/'); const x = r.length === 2 ? +r[0] / +r[1] : +r[0]; return Number.isFinite(x) ? x : 0; })() : 0,
+    colorPrimaries: v ? v.color_primaries || null : null, sampleRate: a ? +a.sample_rate || 0 : 0, channels: a ? a.channels || 0 : 0,
+    container: j.format && j.format.format_name || '',
   };
 }
 
@@ -97,6 +100,38 @@ async function proxy(file, info, outMp4, onProgress) {
   });
 }
 
+/* Loudness peaks for the timeline waveform: mono 8 kHz PCM, max |sample| per bucket, 0..1 */
+async function peaks(file, start, dur, n = 400) {
+  const P = rt.paths();
+  const args = ['-v', 'error', ...(start > 0 ? ['-ss', start.toFixed(3)] : []), ...(dur > 0 ? ['-t', dur.toFixed(3)] : []), '-i', file, '-vn', '-ac', '1', '-ar', '8000', '-f', 's16le', 'pipe:1'];
+  const b = await run(P.ffmpeg, args, { binary: true, timeout: 120000 });
+  const total = Math.floor(b.length / 2), per = Math.max(1, Math.floor(total / n)), out = new Array(n).fill(0);
+  for (let i = 0; i < n; i++) {
+    let m = 0;
+    for (let j = i * per, e = Math.min(total, (i + 1) * per); j < e; j++) { const v = Math.abs(b.readInt16LE(j * 2)); if (v > m) m = v; }
+    out[i] = Math.round(m / 327.68) / 100;
+  }
+  return out;
+}
+
+/* Checks a finished export: it opens, the last second decodes, and duration / size / audio match the plan */
+async function verifyOutput(st) {
+  const P = rt.paths();
+  const problems = [];
+  let info = null;
+  try { info = await probe(st.file); } catch (e) { return { ok: false, problems: ['cannot open the file: ' + String(e.message || e).slice(0, 200)] }; }
+  const size = (() => { try { return fs.statSync(st.file).size; } catch (e) { return 0; } })();
+  if (!size) problems.push('empty file');
+  if (st.expectDur > 0 && Math.abs(info.duration - st.expectDur) / st.expectDur > (st.tol || 0.03) && Math.abs(info.duration - st.expectDur) > 0.15) problems.push(`duration ${info.duration.toFixed(2)}s, expected ${st.expectDur.toFixed(2)}s`);
+  const [w, h] = info.rotation % 180 ? [info.height, info.width] : [info.width, info.height];
+  if (st.w && st.h && (w !== st.w || h !== st.h)) problems.push(`size ${w}x${h}, expected ${st.w}x${st.h}`);
+  if (st.audio && !info.hasAudio) problems.push('audio missing');
+  try {
+    await run(P.ffmpeg, ['-v', 'error', '-xerror', '-sseof', '-1', '-i', st.file, '-f', 'null', '-'], { timeout: 120000 });
+  } catch (e) { problems.push('the end of the file does not decode'); }
+  return { ok: !problems.length, problems, dur: info.duration, w, h, fps: info.fps, audio: info.hasAudio, size, vcodec: info.vcodec, acodec: info.acodec };
+}
+
 function canPlayNatively(info) {
   return ['h264', 'vp8', 'vp9', 'av1', 'hevc'].includes(info.vcodec) && !/10|12/.test(info.pixFmt || '') || info.vcodec === 'h264';
 }
@@ -107,4 +142,4 @@ function tmpDir(name) {
   return d;
 }
 
-module.exports = { run, probe, thumbs, frame, proxy, canPlayNatively, tmpDir, IMG_EXT };
+module.exports = { run, probe, thumbs, frame, proxy, peaks, verifyOutput, canPlayNatively, tmpDir, IMG_EXT };

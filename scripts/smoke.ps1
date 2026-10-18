@@ -30,10 +30,12 @@ Check 'vspipe -> ffmpeg' {
   & "$rt\ffmpeg\ffprobe.exe" -v error -show_entries stream=width,height,nb_frames -of csv=p=0 "$env:TEMP\o.mp4"
 }
 Check 'vs-mlrt plugins load' { & $py -c "import vapoursynth as vs, glob, os; c=vs.core; [c.std.LoadPlugin(p) for p in glob.glob(r'$rt\vs-plugins\**\vs*.dll', recursive=True)]; print([n for n in ('ort','ncnn') if hasattr(c,n)])" }
-Check 'ORT DirectML session (BiRefNet)' { & $py -c @"
-import onnxruntime as o, time
+Check 'no background-removal model shipped' { if (Test-Path "$rt\models\birefnet") { throw 'birefnet still in runtime' } }
+Check 'ORT DirectML session (Real-ESRGAN photo x4)' { & $py -c @"
+import onnxruntime as o, time, json
+m=json.load(open(r'$rt\manifest.json', encoding='utf-8-sig'))['models']['photo_x4']
 t=time.time()
-s=o.InferenceSession(r'$rt\models\birefnet\birefnet.onnx', providers=['DmlExecutionProvider','CPUExecutionProvider'])
+s=o.InferenceSession(r'$rt' + '\\' + m, providers=['DmlExecutionProvider','CPUExecutionProvider'])
 print('providers', s.get_providers(), 'inputs', [(i.name,i.shape,i.type) for i in s.get_inputs()], 'outputs', [(i.name,i.shape,i.type) for i in s.get_outputs()], round(time.time()-t,1),'s')
 "@ }
 # AI upscale through the real export pipeline builder (CPU backend here: the runner has no GPU)
