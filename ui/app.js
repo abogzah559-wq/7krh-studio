@@ -116,6 +116,13 @@
     btn.disabled = false; $('#sDiag').disabled = false; btn.querySelector('span').textContent = App.t('hw_bench');
   };
   $('#benchBtn').addEventListener('click', App.runBench);
+  // background measurement on first start
+  S.onDiag && S.onDiag(p => {
+    const btn = $('#benchBtn');
+    if (p.step === 'done') { btn.disabled = false; $('#sDiag').disabled = false; btn.querySelector('span').textContent = App.t('hw_bench'); if (p.report) { showBench(p.report); showCaps(p.report.caps); } return; }
+    btn.disabled = true; $('#sDiag').disabled = true;
+    btn.querySelector('span').textContent = App.t('hw_tuning') + (p.step ? ' · ' + (App.t('st_' + p.step.replace(/_.*/, '')) || '') : '');
+  });
   $('#sDiag').addEventListener('click', App.runBench);
 
   /* ---------------- exports queue ---------------- */
@@ -148,7 +155,7 @@
     const acts = el.querySelector('.acts'); acts.innerHTML = '';
     if (j.state === 'run') { const c = document.createElement('button'); c.className = 'btn sm'; c.textContent = App.t('cancel'); c.onclick = () => S.cancel(id); acts.appendChild(c); }
     if (j.state === 'done') {
-      const o = document.createElement('button'); o.className = 'btn sm primary'; o.textContent = App.t('open_file'); o.onclick = () => S.openPath(j.out);
+      const o = document.createElement('button'); o.className = 'btn sm primary'; o.textContent = App.t('play'); o.onclick = () => App.play(j.out, j.expect);
       const f = document.createElement('button'); f.className = 'btn sm'; f.textContent = App.t('open_folder'); f.onclick = () => S.reveal(j.out);
       acts.append(o, f);
     }
@@ -158,16 +165,45 @@
     const running = [...Q.values()].filter(x => x.state === 'run').length;
     $('#qBadge').hidden = !running; $('#qBadge').textContent = running;
   }
+  /* finished exports survive restarts */
+  const HK = '7krh.history';
+  function saveHist(j) {
+    try {
+      const h = JSON.parse(localStorage.getItem(HK) || '[]').filter(x => x.out !== j.out);
+      h.unshift({ name: j.name, out: j.out, size: j.size, secs: j.secs, expect: j.expect, thumb: j.thumb, at: Date.now() });
+      localStorage.setItem(HK, JSON.stringify(h.slice(0, 40)));
+    } catch (e) {}
+  }
+  function loadHist() {
+    let h = []; try { h = JSON.parse(localStorage.getItem(HK) || '[]'); } catch (e) {}
+    h.slice().reverse().forEach((x, i) => { const id = 'h' + i; Q.set(id, { ...x, id, state: 'done', old: true }); qRender(id); });
+  }
   App.addJob = (id, meta) => { Q.set(id, { id, state: 'run', frac: 0, phase: 'encode', ...meta }); qRender(id); };
   S.onJob(ev => {
     const j = Q.get(ev.id); if (!j) return;
     if (ev.type === 'progress') { j.frac = ev.frac; if (ev.fps != null) j.fps = ev.fps; if (ev.eta !== undefined) j.eta = ev.eta; }
     else if (ev.type === 'phase') j.phase = ev.phase;
-    else if (ev.type === 'done') { Object.assign(j, { state: 'done', out: ev.out, size: ev.size, secs: ev.secs, expect: ev.expect }); App.toast(App.t('toast_done') + ' — ' + j.name, 'ok'); }
+    else if (ev.type === 'done') { Object.assign(j, { state: 'done', out: ev.out, size: ev.size, secs: ev.secs, expect: ev.expect }); App.toast(App.t('toast_done') + ' — ' + j.name, 'ok'); saveHist(j); }
     else if (ev.type === 'error') Object.assign(j, { state: 'error', err: ev.err, log: ev.log, cancelled: ev.cancelled });
     qRender(ev.id);
     document.dispatchEvent(new CustomEvent('jobev', { detail: ev }));
   });
+
+  /* ---------------- built-in player (plays H.264/HEVC/AV1 with the GPU decoder, no Windows extension needed) ---------------- */
+  const pv = $('#pvVid'); let pvPath = null;
+  App.play = (p, ex) => {
+    pvPath = p; $('#pv').hidden = false; $('#pvErr').hidden = true;
+    $('#pvName').textContent = p.split(/[\\/]/).pop();
+    $('#pvInfo').textContent = ex ? `${ex.w}×${ex.h} · ${Math.round(ex.fps * 100) / 100} fps` : '';
+    pv.src = App.fileUrl(p); pv.play().catch(() => {});
+  };
+  pv.addEventListener('error', () => { $('#pvErr').hidden = false; });
+  const pvClose = () => { pv.pause(); pv.removeAttribute('src'); pv.load(); $('#pv').hidden = true; };
+  $('#pvClose').addEventListener('click', pvClose);
+  $('#pv').addEventListener('click', e => { if (e.target.id === 'pv') pvClose(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#pv').hidden) pvClose(); });
+  $('#pvFolder').addEventListener('click', () => pvPath && S.reveal(pvPath));
+  $('#pvSys').addEventListener('click', () => pvPath && S.openPath(pvPath));
 
   /* ---------------- settings ---------------- */
   async function saveSet(p) { App.settings = await S.settings.set(p); }
@@ -194,6 +230,7 @@
     $('#hwRam').textContent = App.info.ramGB + ' GB';
     $('#rtBad').hidden = App.info.runtime.ok;
     App.go('home');
+    loadHist();
     S.caps().then(showCaps).catch(() => {});
     S.diagCached && S.diagCached().then(showBench).catch(() => {});
   })();

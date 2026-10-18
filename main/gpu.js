@@ -38,6 +38,15 @@ async function testEncoder(name) {
   } catch (e) { return false; }
 }
 
+/* Are the Microsoft Store codec extensions installed? (decides which codec plays in Windows' own players) */
+async function codecExtensions() {
+  try {
+    const s = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+      "Get-AppxPackage -Name 'Microsoft.HEVCVideoExtension*','Microsoft.AV1VideoExtension*' | Select-Object -ExpandProperty Name"], { timeout: 20000 });
+    return { hevcExt: /HEVC/i.test(s), av1Ext: /AV1/i.test(s) };
+  } catch (e) { return {}; }
+}
+
 let capsPromise = null;
 function caps(userData, force = false) {
   if (capsPromise && !force) return capsPromise;
@@ -46,11 +55,12 @@ function caps(userData, force = false) {
     const g = await gpus();
     const key = JSON.stringify(g.map(x => [x.name, x.driver]));
     if (!force) {
-      try { const c = JSON.parse(fs.readFileSync(file, 'utf8')); if (c.key === key && c.v === 2) return c; } catch (e) {}
+      try { const c = JSON.parse(fs.readFileSync(file, 'utf8')); if (c.key === key && c.v === 3) return c; } catch (e) {}
     }
     const enc = [];
     for (const e of ENCODERS) if (await testEncoder(e)) enc.push(e);
-    const c = { v: 2, key, gpus: g, encoders: enc, nvidia: g.some(x => x.nvidia), time: Date.now() };
+    const ext = await codecExtensions();
+    const c = { v: 3, key, gpus: g, encoders: enc, nvidia: g.some(x => x.nvidia), ...ext, time: Date.now() };
     try { fs.mkdirSync(userData, { recursive: true }); fs.writeFileSync(file, JSON.stringify(c, null, 1)); } catch (e) {}
     return c;
   })();

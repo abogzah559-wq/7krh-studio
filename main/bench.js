@@ -55,7 +55,7 @@ g = P['gpu']
 if be_name == 'ort': be = Backend.ORT_DML(fp16=True, num_streams=2, device_id=g)
 elif be_name == 'ncnn': be = Backend.NCNN_VK(fp16=True, num_streams=2, device_id=g)
 elif be_name == 'trt': be = Backend.TRT_RTX(fp16=True, num_streams=2, device_id=g, engine_folder=P['engines'])
-for (w, h) in ((540, 960), (720, 1280), (1080, 1920)):
+for (w, h) in P['sizes']:
     key = 'esrgan_%s_%dp_fps' % (be_name, w)
     try:
         t = time.perf_counter()
@@ -99,7 +99,8 @@ async function run(ud, settings, onProgress = () => {}) {
   const P = rt.paths();
   const t0 = Date.now();
   const g = settings.gpu || 0;
-  const report = { time: new Date().toISOString(), runtime: rt.status(), vs: {} };
+  let ver = ''; try { ver = require('electron').app.getVersion(); } catch (e) {}
+  const report = { time: new Date().toISOString(), appVersion: ver, benchVersion: 2, runtime: rt.status(), vs: {} };
   onProgress({ step: 'caps' });
   report.caps = await gpu.caps(ud, true);
   const merge = r => Object.assign(report.vs, r.error ? { [r.k + '_error']: r.error } : r);
@@ -110,7 +111,8 @@ async function run(ud, settings, onProgress = () => {}) {
     if (!plugin || !fs.existsSync(plugin)) { report.vs[`esrgan_${name}_error`] = 'not installed'; continue; }
     onProgress({ step: 'upscale_' + name });
     // TensorRT builds an engine the first time (minutes); later runs reuse it from userData\engines
-    merge({ k: 'esrgan_' + name, ...(await runPy(UPSCALE, JSON.stringify({ backend: name, plugin, model: P.models.real_x4, gpu: g, engines }), name === 'trt' ? 1500000 : 600000)) });
+    const sizes = name === 'trt' ? [[720, 1280]] : [[540, 960], [720, 1280], [1080, 1920]];
+    merge({ k: 'esrgan_' + name, ...(await runPy(UPSCALE, JSON.stringify({ backend: name, plugin, model: P.models.real_x4, gpu: g, engines, sizes }), name === 'trt' ? 1500000 : 600000)) });
   }
   onProgress({ step: 'image' });
   try { report.image = await img.call('bench', { device: g }); } catch (e) { report.image = { error: String(e.message || e).slice(0, 800) }; }

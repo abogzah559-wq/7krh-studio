@@ -8,7 +8,7 @@
     adjust: { brightness: 0, contrast: 0, saturation: 0, sharpen: 0 },
     audio: { mode: 'keep', file: null, volume: 1, musicVolume: 1, musicStart: 0 },
     up: { on: false, model: 'real', quality: 'balanced' }, fg: { on: false, model: '4.26' },
-    out: { res: 'source', fps: 'source', codec: 'hevc', quality: 'high', tenBit: false }, platform: 'self',
+    out: { res: 'source', fps: 'source', codec: 'h264', quality: 'high', tenBit: false }, platform: 'self',
   };
   const music = new Audio();
   const fps = () => { const r = String(st.info && st.info.fps || '30').split('/'); return r.length === 2 ? r[0] / r[1] : +r[0] || 30; };
@@ -181,9 +181,16 @@
   }
   seg('#resSeg', v => { st.out.res = v; summarySoon(); });
   seg('#fpsSeg', v => { st.out.fps = v; summarySoon(); });
-  $('#codec').addEventListener('change', e => { st.out.codec = e.target.value; if (e.target.value === 'h264') { $('#tenBit').checked = false; st.out.tenBit = false; } summarySoon(); });
+  $('#codec').addEventListener('change', e => { st.out.codec = e.target.value; if (e.target.value === 'h264') { $('#tenBit').checked = false; st.out.tenBit = false; } codecHint(); summarySoon(); });
+  /* HEVC/AV1 files only play in Windows' own players when the matching (free/paid) extension is installed */
+  function codecHint() {
+    const c = App.caps || {}, h = $('#codecHint');
+    const miss = st.out.codec === 'hevc' ? c.hevcExt === false : st.out.codec === 'av1' ? c.av1Ext === false : false;
+    h.hidden = !miss; h.textContent = miss ? t('codec_ext_' + st.out.codec) : '';
+  }
+  document.addEventListener('caps', codecHint);
   $('#quality').addEventListener('change', e => { st.out.quality = e.target.value; summarySoon(); });
-  $('#tenBit').addEventListener('change', e => { st.out.tenBit = e.target.checked; if (st.out.tenBit && st.out.codec === 'h264') { st.out.codec = 'hevc'; $('#codec').value = 'hevc'; } summarySoon(); });
+  $('#tenBit').addEventListener('change', e => { st.out.tenBit = e.target.checked; if (st.out.tenBit && st.out.codec === 'h264') { st.out.codec = 'hevc'; $('#codec').value = 'hevc'; } codecHint(); summarySoon(); });
   $('#plats').addEventListener('click', e => {
     const b = e.target.closest('.plat'); if (!b) return;
     st.platform = b.dataset.p; $$('#plats .plat').forEach(x => x.classList.toggle('on', x === b));

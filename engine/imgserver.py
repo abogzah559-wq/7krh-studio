@@ -25,21 +25,59 @@ def send(o):
     _out.flush()
 
 
+def _make(path, mode):
+    """mode: 'dml' (all graph fusions), 'dml-safe' (no fusions: avoids DirectML fused-node failures on some
+    drivers/models), 'cpu'."""
+    opts = ort.SessionOptions()
+    opts.log_severity_level = 3
+    provs = []
+    if mode.startswith('dml') and 'DmlExecutionProvider' in ort.get_available_providers():
+        provs.append(('DmlExecutionProvider', {'device_id': DEVICE}))
+        opts.enable_mem_pattern = False
+        opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        opts.graph_optimization_level = (ort.GraphOptimizationLevel.ORT_ENABLE_ALL if mode == 'dml'
+                                         else ort.GraphOptimizationLevel.ORT_ENABLE_BASIC)
+        if mode == 'dml-safe':
+            # run the model as many small DirectML ops instead of one fused graph (the fused graph is what
+            # failed on RTX 40 + BiRefNet fp32)
+            opts.add_session_config_entry('ep.dml.disable_graph_fusion', '1')
+    else:
+        opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+    provs.append('CPUExecutionProvider')
+    return ort.InferenceSession(path, sess_options=opts, providers=provs)
+
+
+_modes = {}
+
+
 def session(path):
     s = _sessions.get(path)
     if s is None:
-        opts = ort.SessionOptions()
-        opts.log_severity_level = 3
-        opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        provs = []
-        if 'DmlExecutionProvider' in ort.get_available_providers():
-            provs.append(('DmlExecutionProvider', {'device_id': DEVICE}))
-            opts.enable_mem_pattern = False
-            opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-        provs.append('CPUExecutionProvider')
-        s = ort.InferenceSession(path, sess_options=opts, providers=provs)
+        mode = _modes.get(path, 'dml')
+        try:
+            s = _make(path, mode)
+        except Exception:
+            mode = 'dml-safe' if mode == 'dml' else 'cpu'
+            s = _make(path, mode)
+        _modes[path] = mode
         _sessions[path] = s
     return s
+
+
+def run(path, feeds):
+    """Runs a model, stepping down dml -> dml-safe -> cpu if the GPU path fails, and remembers what worked."""
+    while True:
+        s = session(path)
+        try:
+            return s.run(None, feeds)
+        except Exception as e:
+            mode = _modes.get(path, 'dml')
+            if mode == 'cpu':
+                raise
+            nxt = 'dml-safe' if mode == 'dml' else 'cpu'
+            sys.stderr.write(f'{os.path.basename(path)}: {mode} failed ({str(e)[:200]}), trying {nxt}\n')
+            _sessions.pop(path, None)
+            _modes[path] = nxt
 
 
 def load_rgb(src):
@@ -82,7 +120,8 @@ def op_bg(req):
     inp = s.get_inputs()[0]
     if 'float16' in inp.type:
         x = x.astype(np.float16)
-    y = s.run(None, {inp.name: x})[0].astype(np.float32)[0, 0]
+    y = run(path, {inp.name: x})[0].astype(np.float32)[0, 0]
+    s = session(path)
     if y.min() < -0.01 or y.max() > 1.01:
         y = 1.0 / (1.0 + np.exp(-y))
     m = Image.fromarray((np.clip(y, 0, 1) * 255).astype(np.uint8)).resize((W, H), Image.BICUBIC)
@@ -131,7 +170,7 @@ def op_upscale(req):
             t = x[py0:py1, px0:px1].transpose(2, 0, 1)[None]
             if 'float16' in inp.type:
                 t = t.astype(np.float16)
-            r = s.run(None, {inp.name: np.ascontiguousarray(t)})[0][0].astype(np.float32).transpose(1, 2, 0)
+            r = run(MANIFEST[key], {inp.name: np.ascontiguousarray(t)})[0][0].astype(np.float32).transpose(1, 2, 0)
             oy, ox = (y0 - py0) * net, (x0 - px0) * net
             out[y0 * net:y1 * net, x0 * net:x1 * net] = r[oy:oy + (y1 - y0) * net, ox:ox + (x1 - x0) * net]
             n += 1
@@ -161,20 +200,20 @@ def op_bench(req):
     s = session(MANIFEST['birefnet'])
     inp = s.get_inputs()[0]
     x = np.random.rand(1, 3, 1024, 1024).astype(np.float16 if 'float16' in inp.type else np.float32)
-    s.run(None, {inp.name: x})
+    run(MANIFEST['birefnet'], {inp.name: x})
     t = time.time()
     for _ in range(3):
-        s.run(None, {inp.name: x})
+        run(MANIFEST['birefnet'], {inp.name: x})
     res['birefnet_ms'] = int((time.time() - t) / 3 * 1000)
     s2 = session(MANIFEST['real_x4'])
     i2 = s2.get_inputs()[0]
     y = np.random.rand(1, 3, 540, 960).astype(np.float32)
-    s2.run(None, {i2.name: y})
+    run(MANIFEST['real_x4'], {i2.name: y})
     t = time.time()
     for _ in range(5):
-        s2.run(None, {i2.name: y})
+        run(MANIFEST['real_x4'], {i2.name: y})
     res['esrgan_960x540_fps'] = round(5 / (time.time() - t), 2)
-    res['provider'] = s.get_providers()[0]
+    res['provider'] = session(MANIFEST['birefnet']).get_providers()[0] + ' / ' + _modes.get(MANIFEST['birefnet'], '')
     return res
 
 

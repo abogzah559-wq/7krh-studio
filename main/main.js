@@ -17,7 +17,7 @@ if (!app.requestSingleInstanceLock()) { app.quit(); }
 let win = null;
 const UD = () => app.getPath('userData');
 const SETTINGS = () => path.join(UD(), 'settings.json');
-const DEFAULTS = { lang: null, outDir: null, gpu: 0, upBackend: 'auto', quality: 'high', codec: 'hevc', tenBit: false, platform: 'self', firstRun: true };
+const DEFAULTS = { lang: null, outDir: null, gpu: 0, upBackend: 'auto', quality: 'high', codec: 'h264', tenBit: false, platform: 'self', firstRun: true };
 
 function readSettings() {
   try { return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(SETTINGS(), 'utf8')) }; } catch (e) { return { ...DEFAULTS }; }
@@ -73,6 +73,11 @@ app.whenReady().then(() => {
   // warm up hardware detection in the background
   gpu.caps(UD()).catch(() => {});
   // "7krh Studio.exe --diag" measures the PC and writes Documents\7krh Studio\diagnostics.json
+  // first start (or new version): measure this PC once in the background so the fastest AI engine is used
+  setTimeout(() => {
+    const b = bench.cached(UD());
+    if (!process.argv.includes('--diag') && (!b || b.benchVersion !== 2 || b.appVersion !== app.getVersion())) runDiag().catch(() => {});
+  }, 4000);
   if (process.argv.includes('--diag')) {
     bench.run(UD(), readSettings()).then(report => {
       const file = path.join(app.getPath('documents'), '7krh Studio', 'diagnostics.json');
@@ -202,10 +207,17 @@ handle('img:upscale', async (src, out, model, scale, reqId) => {
 handle('img:warm', async () => img.start(readSettings().gpu || 0));
 
 /* ---------------------------------------------------------------- diagnostics / benchmark */
-handle('diag:run', async outFile => {
-  const report = await bench.run(UD(), readSettings(), p => win && win.webContents.send('diag:progress', p));
-  const file = outFile || path.join(app.getPath('documents'), '7krh Studio', 'diagnostics.json');
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(report, null, 1));
-  return { file, report };
-});
+let diagRun = null;
+function runDiag(outFile) {
+  if (diagRun) return diagRun;
+  diagRun = (async () => {
+    const report = await bench.run(UD(), readSettings(), p => win && win.webContents.send('diag:progress', p));
+    const file = outFile || path.join(app.getPath('documents'), '7krh Studio', 'diagnostics.json');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(report, null, 1));
+    win && win.webContents.send('diag:progress', { step: 'done', report, file });
+    return { file, report };
+  })().finally(() => { diagRun = null; });
+  return diagRun;
+}
+handle('diag:run', async outFile => runDiag(outFile));

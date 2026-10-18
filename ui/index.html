@@ -162,8 +162,9 @@
               <div class="field" style="margin-top:0"><label data-i="res"></label><div class="seg" id="resSeg"><button data-v="source" class="on" data-i="res_src"></button><button data-v="1080">1080p</button><button data-v="1440">2K</button><button data-v="2160">4K</button></div></div>
               <div class="field"><label data-i="fps"></label><div class="seg" id="fpsSeg"><button data-v="source" class="on" data-i="fps_src"></button><button data-v="30">30</button><button data-v="60">60</button><button data-v="120">120</button></div></div>
               <div class="hint warn" id="fpsHint" hidden data-i="fps_hint_dup"></div>
+              <div class="hint warn" id="codecHint" hidden></div>
               <div class="two">
-                <div class="field"><label data-i="codec"></label><select id="codec"><option value="hevc">HEVC (H.265)</option><option value="h264">H.264</option><option value="av1">AV1</option></select></div>
+                <div class="field"><label data-i="codec"></label><select id="codec"><option value="h264" selected>H.264</option><option value="hevc">HEVC (H.265)</option><option value="av1">AV1</option></select></div>
                 <div class="field"><label data-i="quality"></label><select id="quality"><option value="balanced" data-i="q_bal"></option><option value="high" data-i="q_high" selected></option><option value="max" data-i="q_max"></option></select></div>
               </div>
               <label class="toggle" style="margin-top:14px"><input type="checkbox" id="tenBit"><span class="sw"></span><span><small data-i="tenbit" style="margin-top:3px"></small></span></label>
@@ -270,6 +271,12 @@
       </div>
     </section>
   </main>
+</div>
+<div class="modal" id="pv" hidden>
+  <div class="mbox">
+    <div class="mhead"><b id="pvName"></b><span class="tag" id="pvInfo"></span><span class="sp"></span><button class="btn sm" id="pvFolder"><svg><use href="#i-folder"/></svg><span data-i="open_folder"></span></button><button class="btn sm ghost" id="pvSys" data-i="open_system"></button><button class="icbtn" id="pvClose"><svg><use href="#i-x"/></svg></button></div>
+    <div class="mbody"><video id="pvVid" controls playsinline></video><div class="hint warn" id="pvErr" hidden data-i="pv_err"></div></div>
+  </div>
 </div>
 <div class="toasts" id="toasts"></div>
 <div class="dropveil" id="dropVeil" hidden data-i="drop_here"></div>
