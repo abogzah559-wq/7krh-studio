@@ -48,9 +48,11 @@ function paths() {
       rife: abs(man.rife) || path.join(r, 'vs-plugins', 'librife.dll'),
       vsort: abs(man.vsort) || path.join(r, 'vs-plugins', 'vsort.dll'),
       vsncnn: abs(man.vsncnn) || path.join(r, 'vs-plugins', 'vsncnn.dll'),
+      vstrt: abs(man.vstrt) || path.join(r, 'vs-plugins', 'vstrt_rtx.dll'),
       dir: path.join(r, 'vs-plugins'),
     },
     models: {
+      ...Object.fromEntries(Object.entries(m).map(([k, v]) => [k, abs(v)])),
       real_x2: abs(m.real_x2), real_x4: abs(m.real_x4), anime_x2: abs(m.anime_x2), anime_x4: abs(m.anime_x4),
       photo_x4: abs(m.photo_x4), birefnet: abs(m.birefnet) || path.join(r, 'models', 'birefnet', 'birefnet_fp16.onnx'),
       rifeDir: path.join(r, 'models', 'rife'),

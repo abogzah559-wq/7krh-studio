@@ -90,17 +90,20 @@
   }
   function showBench(r) {
     if (!r) return;
+    App.bench = r;
     const box = $('#benchBox'); box.hidden = false; box.innerHTML = '';
     const rows = [];
     const v = r.vs || {}, im = r.image || {};
-    const best = Math.max(v.esrgan_ort_540p_to_4k_fps || 0, v.esrgan_ncnn_540p_to_4k_fps || 0);
-    if (best) rows.push(['Real-ESRGAN 540p→4K', best.toFixed(1) + ' fps']);
-    if (v.esrgan_ort_1080p_x4_fps || v.esrgan_ncnn_1080p_x4_fps) rows.push(['Real-ESRGAN 1080p ×4', Math.max(v.esrgan_ort_1080p_x4_fps || 0, v.esrgan_ncnn_1080p_x4_fps || 0).toFixed(1) + ' fps']);
-    if (v['rife_4.26_1080p_x2_fps']) rows.push(['RIFE 4.26 1080p ×2', v['rife_4.26_1080p_x2_fps'] + ' fps']);
-    if (v['rife_4.6_1080p_x2_fps']) rows.push(['RIFE 4.6 1080p ×2', v['rife_4.6_1080p_x2_fps'] + ' fps']);
-    if (im.birefnet_ms) rows.push(['BiRefNet', im.birefnet_ms + ' ms']);
+    const eng = { trt: 'TensorRT', ort: 'DirectML', ncnn: 'Vulkan' };
+    const best = r.best || ['trt', 'ort', 'ncnn'].find(n => v[`esrgan_${n}_720p_fps`]);
+    if (best && v[`esrgan_${best}_720p_fps`]) rows.push([`AI 4K (${eng[best]})`, v[`esrgan_${best}_720p_fps`].toFixed(1) + ' fps']);
+    if (v['rife_4.26_2160p_fps']) rows.push(['RIFE 4.26 · 4K', v['rife_4.26_2160p_fps'] + ' fps']);
+    if (v['rife_4.26_1080p_fps']) rows.push(['RIFE 4.26 · 1080p', v['rife_4.26_1080p_fps'] + ' fps']);
+    if (im.birefnet_ms) rows.push([App.t('nav_bg'), im.birefnet_ms + ' ms']);
     rows.forEach(([k, val]) => { const d = document.createElement('div'); d.className = 'row'; const a = document.createElement('span'); a.textContent = k; const b = document.createElement('b'); b.textContent = val; d.append(a, b); box.appendChild(d); });
-    if (!rows.length) box.textContent = JSON.stringify(r).slice(0, 300);
+    const errs = Object.keys(v).filter(k => /error/.test(k) && !/not installed/.test(v[k]));
+    if (!rows.length || errs.length) { const d = document.createElement('div'); d.className = 'hint warn'; d.textContent = App.t('bench_partial'); box.appendChild(d); }
+    document.dispatchEvent(new CustomEvent('bench'));
   }
   App.runBench = async () => {
     const btn = $('#benchBtn'); btn.disabled = true; $('#sDiag').disabled = true;

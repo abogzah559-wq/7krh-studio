@@ -34,31 +34,19 @@
     });
     $('#imgEmpty').hidden = !!items.length;
   }
-  /* compare view: after on the right of the line, before on the left */
-  const cv = $('#imgCanvas'); let A = null, B = null, split = 0.5, sdrag = false;
+  /* compare view with zoom: after on the right of the line, before on the left */
+  const cv = $('#imgCanvas'); let A = null, B = null;
+  const V = App.Compare(cv, $('#imgCv'), z => { $('#imgZoom').textContent = z + '%'; });
+  $$('#imgZoomBar [data-z]').forEach(b => b.addEventListener('click', () => V.zoomTo(+b.dataset.z)));
   async function select(i) {
     cur = i; render();
     const it = items[i]; if (!it) return;
     A = await img(App.fileUrl(it.src)); B = it.out ? await img(App.fileUrl(it.out) + '?' + it.ms) : null;
-    cv.hidden = false; draw();
+    cv.hidden = false;
+    V.set(B ? A : A, B);
+    $('#imgLblA').hidden = $('#imgLblB').hidden = !B; $('#imgZoomBar').hidden = false;
   }
   const img = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
-  function draw() {
-    if (!A) return;
-    const W = B ? B.naturalWidth : A.naturalWidth, H = B ? B.naturalHeight : A.naturalHeight;
-    const k = Math.min(1, 4096 / Math.max(W, H)); cv.width = Math.round(W * k); cv.height = Math.round(H * k);
-    const x = cv.getContext('2d'); x.imageSmoothingQuality = 'high';
-    if (!B) { x.drawImage(A, 0, 0, cv.width, cv.height); $('#imgLbl').hidden = true; return; }
-    x.drawImage(B, 0, 0, cv.width, cv.height);
-    const sx = Math.round(cv.width * split);
-    x.save(); x.beginPath(); x.rect(0, 0, sx, cv.height); x.clip(); x.drawImage(A, 0, 0, cv.width, cv.height); x.restore();
-    x.fillStyle = '#fff'; x.fillRect(sx - 1, 0, 2, cv.height);
-    $('#imgLbl').hidden = false; $('#imgLbl').textContent = `${t('before')} | ${t('after')}`;
-  }
-  cv.addEventListener('pointerdown', e => { sdrag = true; cv.setPointerCapture(e.pointerId); smove(e); });
-  cv.addEventListener('pointermove', e => { if (sdrag) smove(e); });
-  cv.addEventListener('pointerup', () => { sdrag = false; });
-  function smove(e) { const r = cv.getBoundingClientRect(); split = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); draw(); }
 
   S.onImg(({ reqId, p }) => { const it = items.find(x => x.req === reqId); if (it) { it.p = p; render(); $('#imgBusyTxt').textContent = t('img_working') + ' ' + Math.round(p * 100) + '%'; } });
 
@@ -81,7 +69,6 @@
     if (done.length) App.toast(t('img_done') + ' — ' + done.length, 'ok');
   });
   $('#imgAdd').addEventListener('click', async () => add(await S.open('image', true)));
-  $('#imgClear').addEventListener('click', () => { if (running) return; items.length = 0; cur = -1; A = B = null; cv.hidden = true; render(); $('#imgGo').disabled = true; });
-  $('#imgCv').addEventListener('dblclick', () => { const it = items[cur]; if (it && it.out) S.reveal(it.out); });
+  $('#imgClear').addEventListener('click', () => { if (running) return; items.length = 0; cur = -1; A = B = null; V.clear(); cv.hidden = true; $('#imgZoomBar').hidden = true; $('#imgLblA').hidden = $('#imgLblB').hidden = true; render(); $('#imgGo').disabled = true; });
   window.Images = { add };
 })();

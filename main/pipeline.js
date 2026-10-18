@@ -48,6 +48,21 @@ function upscaleFactor(srcW, srcH, outW, outH) {
   return need <= 2.05 ? 2 : 4;
 }
 
+/* The AI models are ×4 networks. Their cost grows with the INPUT size, and on footage that is already HD a
+   ×4 pass on the full frame is wasted work (it is shrunk again right after). So the frame is first brought to
+   a "working" size — never below target/4, never above the quality cap — then the network rebuilds detail
+   up to (or past) the target, and a high quality resize lands it exactly on the output size.
+   Measured on real footage: a 720p working size already gives clean, visibly sharper 4K;
+   a 540p one starts to lose small text. */
+const AI_IN = { fast: 540, balanced: 720, max: 1080 };
+function aiInputSize(cw, ch, W, H, quality) {
+  const sShort = Math.min(cw, ch), tShort = Math.min(W, H);
+  const cap = AI_IN[quality] || AI_IN.balanced;
+  const inShort = Math.min(sShort, Math.max(Math.ceil(tShort / 4), cap));
+  const k = inShort / sShort;
+  return [even(cw * k), even(ch * k)];
+}
+
 /* ---------------------------------------------------------------- frame rate */
 function parseRate(r) {
   if (!r) return 0;
@@ -172,7 +187,6 @@ function vpyScript(p) {
   L.push('    except vs.Error as e:');
   L.push('        if "already loaded" not in str(e): raise');
   L.push(`_load(r"${p.plugins.lsmas}")`);
-  if (p.fg) L.push(`_load(r"${p.plugins.rife}")`);
   L.push(`clip = core.lsmas.LWLibavSource(r"${p.src}", cachefile=r"${p.cache}", prefer_hw=0)`);
   L.push(`fps = clip.fps if clip.fps.numerator > 0 else Fraction(${p.fpsNum}, ${p.fpsDen})`);
   L.push(`a = max(0, int(round(${p.start.toFixed(6)} * fps)))`);
@@ -185,36 +199,47 @@ function vpyScript(p) {
   if (p.crop) L.push(`clip = core.std.CropAbs(clip, ${p.crop.w}, ${p.crop.h}, ${(p.crop.x)}, ${(p.crop.y)})`);
   L.push(`matrix = "${p.matrix}"`);
   L.push('rgb = core.resize.Bicubic(clip, format=vs.RGBS, matrix_in_s=matrix)');
-  if (p.fg) {
-    // frame generation first, at source resolution (much cheaper than at 4K)
-    L.push('luma = core.resize.Bilinear(core.std.ShufflePlanes(clip, 0, vs.GRAY), 64, 36, format=vs.GRAYS)');
+  if (p.up) {
+    // 1) AI upscale on the working-size frame (detail is rebuilt here)
+    if (p.up.inW !== p.srcW || p.up.inH !== p.srcH) L.push(`rgb = core.resize.Spline36(rgb, ${p.up.inW}, ${p.up.inH})`);
+    L.push(`_load(r"${p.up.backend === 'ncnn' ? p.plugins.vsncnn : p.up.backend === 'trt' ? p.plugins.vstrt : p.plugins.vsort}")`);
+    L.push('import vsmlrt');
+    L.push('from vsmlrt import Backend');
+    const dev = p.gpu >= 0 ? ', device_id=' + p.gpu : '';
+    const be = p.up.backend === 'cpu' ? 'Backend.ORT_CPU(num_streams=2)'
+      : p.up.backend === 'ncnn' ? `Backend.NCNN_VK(fp16=True, num_streams=2${dev})`
+      : p.up.backend === 'trt' ? `Backend.TRT_RTX(fp16=True, num_streams=2${dev}, engine_folder=r"${p.engines}")`
+      : `Backend.ORT_DML(fp16=True, num_streams=2${dev})`;
+    L.push(`be = ${be}`);
+    L.push("rgb = core.std.Expr(rgb, ['x 0 max 1 min'])");
+    if (p.up.tiles > 1) L.push(`rgb = vsmlrt.inference(rgb, r"${p.up.model}", overlap=(16, 16), tilesize=(${Math.ceil(p.up.inW / 2 / 8) * 8 + 32}, ${Math.ceil(p.up.inH / 2 / 8) * 8 + 32}), backend=be)`);
+    else L.push(`rgb = vsmlrt.inference(rgb, r"${p.up.model}", backend=be)`);
+  }
+  // 2) exact output size, 3) frame generation. With AI upscale, RIFE runs on the final frames (cheaper than
+  //    upscaling twice as many frames); without it, RIFE runs at source size before the resize.
+  const resize = () => {
+    L.push(`if rgb.width != ${p.outW} or rgb.height != ${p.outH}:`);
+    L.push(`    rgb = core.resize.Spline36(rgb, ${p.outW}, ${p.outH})`);
+  };
+  const rife = () => {
+    L.push("rgb = core.std.Expr(rgb, ['x 0 max 1 min'])");
+    L.push('luma = core.resize.Bilinear(core.std.ShufflePlanes(rgb, 1, vs.GRAY), 64, 36)');
     L.push('st = core.std.PlaneStats(luma, luma[1:] + luma[-1])');
     L.push('def _mark(n, f):');
     L.push('    o = f.copy()');
-    L.push('    o.props["_SceneChangeNext"] = 1 if f.props["PlaneStatsDiff"] > 0.1 else 0');
+    L.push('    o.props["_SceneChangeNext"] = 1 if f.props["PlaneStatsDiff"] > 0.12 else 0');
     L.push('    return o');
     L.push('st = core.std.ModifyFrame(st, st, _mark)');
     L.push('rgb = core.std.CopyFrameProps(rgb, st, props=["_SceneChangeNext"])');
-    L.push(`rgb = core.rife.RIFE(rgb, model=${p.fg.model}, factor_num=${p.fg.num}, factor_den=${p.fg.den}, gpu_thread=${p.fg.threads || 2}, uhd=${rgbWide(p) ? 'True' : 'False'}, sc=True${p.gpu >= 0 ? ', gpu_id=' + p.gpu : ''})`);
-  }
-  if (p.up) {
-    L.push(`_load(r"${p.up.backend === 'ncnn' ? p.plugins.vsncnn : p.plugins.vsort}")`);
-    L.push('import vsmlrt');
-    L.push('from vsmlrt import Backend');
-    const be = p.up.backend === 'cpu' ? 'Backend.ORT_CPU(num_streams=2)' : p.up.backend === 'ncnn'
-      ? `Backend.NCNN_VK(fp16=True, num_streams=2${p.gpu >= 0 ? ', device_id=' + p.gpu : ''})`
-      : `Backend.ORT_DML(fp16=True, num_streams=2${p.gpu >= 0 ? ', device_id=' + p.gpu : ''})`;
-    L.push(`be = ${be}`);
-    if (p.up.tiles > 1) L.push(`rgb = vsmlrt.inference(rgb, r"${p.up.model}", overlap=(16, 16), tilesize=(${Math.ceil(p.srcW / 2 / 8) * 8}, ${Math.ceil(p.srcH / 2 / 8) * 8}), backend=be)`);
-    else L.push(`rgb = vsmlrt.inference(rgb, r"${p.up.model}", backend=be)`);
-  }
-  L.push(`if rgb.width != ${p.outW} or rgb.height != ${p.outH}:`);
-  L.push(`    rgb = core.resize.Spline36(rgb, ${p.outW}, ${p.outH})`);
+    L.push(`_load(r"${p.plugins.rife}")`);
+    L.push(`rgb = core.rife.RIFE(rgb, model=${p.fg.model}, factor_num=${p.fg.num}, factor_den=${p.fg.den}, gpu_thread=${p.fg.threads || 2}, uhd=(rgb.width * rgb.height > 2600000), sc=True${p.gpu >= 0 ? ', gpu_id=' + p.gpu : ''})`);
+  };
+  if (p.fg && !p.up) { rife(); resize(); }
+  else { resize(); if (p.fg) rife(); }
   L.push(`out = core.resize.Bicubic(rgb, format=${p.tenBit ? 'vs.YUV420P10' : 'vs.YUV420P8'}, matrix_s="709", dither_type="error_diffusion")`);
   L.push('out.set_output()');
   return L.join('\n') + '\n';
 }
-function rgbWide(p) { return Math.max(p.srcW, p.srcH) > 2560; }
 
 /* ---------------------------------------------------------------- the plan */
 /*
@@ -272,15 +297,12 @@ function buildPlan(opts, info, caps) {
 
   let up = null;
   if (upOn) {
-    const f = upscaleFactor(cw, ch, W, H);
-    if (f) {
-      const fam = UPSCALERS[opts.enhance.upscale.model] || UPSCALERS.real;
-      const key = f === 2 ? fam.x2 : fam.x4;
-      const model = P.models[key] || P.models[fam.x4];
-      // tile large inputs so VRAM stays reasonable (input pixels × scale²)
-      const tiles = cw * ch * f * f > 3840 * 2160 * 1.2 ? 2 : 1;
-      up = { model, scale: f, backend: caps.upBackend || 'ort', tiles };
-    }
+    const fam = UPSCALERS[opts.enhance.upscale.model] || UPSCALERS.real;
+    const model = P.models[fam.x4] || P.models[fam.x2];
+    const [inW, inH] = aiInputSize(cw, ch, W, H, opts.enhance.upscale.quality || 'balanced');
+    // tile very large working frames so video memory stays comfortable
+    const tiles = inW * inH > 1.6e6 ? 2 : 1;
+    up = { model, scale: 4, inW, inH, backend: caps.upBackend || 'ort', tiles };
   }
 
   const enhance = !!(fg || up);
@@ -294,10 +316,10 @@ function buildPlan(opts, info, caps) {
   if (enhance) {
     const matrix = (info.colorSpace && /bt2020/.test(info.colorSpace)) ? '2020ncl' : (h0 > 576 || w0 > 1024 ? '709' : '170m');
     vpy = vpyScript({
-      src: opts.input, cache: caps.tmp + '\\src.lwi', start, end, rotation: num(info.rotation, 0), matrix,
+      src: opts.input, cache: caps.lwi || (caps.tmp + '\\src.lwi'), start, end, rotation: num(info.rotation, 0), matrix,
       fpsNum: fraction(srcFps)[0], fpsDen: fraction(srcFps)[1],
       crop: crop ? { w: crop.w, h: crop.h, x: Math.floor((w0 - crop.w) / 4) * 2, y: Math.floor((h0 - crop.h) / 4) * 2 } : null,
-      fg, up, outW: W, outH: H, tenBit: enc.tenBit, gpu: num(caps.gpu, -1), srcW: cw, srcH: ch,
+      fg, up, outW: W, outH: H, tenBit: enc.tenBit, gpu: num(caps.gpu, -1), srcW: cw, srcH: ch, engines: caps.engines || (caps.tmp + '\\engines'),
       plugins: P.plugins,
     });
     const [rn, rd] = fraction(fpsBeforeSpeed);
@@ -392,9 +414,9 @@ function buildPlan(opts, info, caps) {
     enhance,
     encoder: enc.name,
     expect: { frames: Math.max(1, Math.round(segDur * outFps)), fps: outFps, w: W, h: H, dur: segDur, kfactor, finalDur: segDur * kfactor },
-    up: up ? { scale: up.scale, backend: up.backend } : null,
+    up: up ? { scale: up.scale, backend: up.backend, inW: up.inW, inH: up.inH } : null,
     fg: fg ? { num: fg.num, den: fg.den } : null,
   };
 }
 
-module.exports = { buildPlan, targetSize, upscaleFactor, kryptonFactor, pickEncoder, encoderArgs, fraction, parseRate, atempoChain, eqFilter, vpyScript, rotatedSize, RIFE };
+module.exports = { buildPlan, targetSize, upscaleFactor, aiInputSize, kryptonFactor, pickEncoder, encoderArgs, fraction, parseRate, atempoChain, eqFilter, vpyScript, rotatedSize, RIFE };

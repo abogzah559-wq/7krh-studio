@@ -22,14 +22,29 @@ function killTree(p) {
 }
 
 class Job {
-  constructor(id, plan, onEvent) {
+  constructor(id, plan, onEvent, logFile = null) {
     this.id = id; this.plan = plan; this.onEvent = onEvent;
     this.procs = []; this.cancelled = false; this.log = [];
+    this.logFile = logFile;
+    if (logFile) {
+      try {
+        fs.mkdirSync(path.dirname(logFile), { recursive: true });
+        const head = [`7krh Studio job ${id}  ${new Date().toISOString()}`, 'expect ' + JSON.stringify(plan.expect), 'up ' + JSON.stringify(plan.up || null) + '  fg ' + JSON.stringify(plan.fg || null) + '  encoder ' + plan.encoder];
+        for (const st of plan.steps) {
+          head.push('--- step ' + st.kind);
+          if (st.vpy) head.push(st.vpy);
+          if (st.vspipe) head.push('VSPIPE ' + st.vspipe.join(' '));
+          if (st.ffmpeg) head.push('FFMPEG ' + st.ffmpeg.map(a => (/\s/.test(a) ? `"${a}"` : a)).join(' '));
+        }
+        fs.writeFileSync(logFile, head.join('\n') + '\n--- output\n');
+      } catch (e) { this.logFile = null; }
+    }
   }
+  fileLog(s) { if (this.logFile) try { fs.appendFileSync(this.logFile, s + '\n'); } catch (e) {} }
   emit(o) { this.onEvent({ id: this.id, ...o }); }
   cancel() { this.cancelled = true; this.procs.forEach(killTree); }
 
-  logLine(s) { this.log.push(s); if (this.log.length > 400) this.log.splice(0, 100); }
+  logLine(s) { this.log.push(s); if (this.log.length > 400) this.log.splice(0, 100); this.fileLog(s); }
 
   progressReader(stream, total, weight, base) {
     let buf = '', t0 = Date.now();
@@ -43,6 +58,7 @@ class Job {
       }
       if (frame != null) {
         const el = (Date.now() - t0) / 1000;
+        if (!this._lp || Date.now() - this._lp > 5000) { this._lp = Date.now(); this.fileLog(`progress frame=${frame}/${total} t=${el.toFixed(1)}s fps=${(frame / Math.max(el, 0.01)).toFixed(2)}`); }
         const frac = Math.min(1, frame / total);
         const fps = el > 0 ? frame / el : 0;
         const eta = fps > 0 ? (total - frame) / fps : null;
@@ -61,6 +77,12 @@ class Job {
   waitExit(p) { return new Promise(res => { if (p.exitCode != null) return res(p.exitCode); p.on('close', c => res(c)); p.on('error', e => { this.logLine(String(e)); res(-1); }); }); }
 
   async run(tmp) {
+    const t0 = Date.now();
+    try { await this._run(tmp); this.fileLog(`DONE in ${((Date.now() - t0) / 1000).toFixed(1)}s`); }
+    catch (e) { this.fileLog(`FAILED after ${((Date.now() - t0) / 1000).toFixed(1)}s: ${e && e.message}`); throw e; }
+  }
+
+  async _run(tmp) {
     const total = this.plan.expect.frames;
     const mainSteps = this.plan.steps.filter(s => !s.post && s.kind !== 'move').length || 1;
     let i = 0;

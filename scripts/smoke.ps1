@@ -58,5 +58,7 @@ c.set_output()
   & "$rt\ffmpeg\ffprobe.exe" -v error -show_entries stream=width,height -of csv=p=0 "$env:TEMP\u.y4m"
 }
 Check 'python image upscale model loads (photo x4)' { & $py -c "import onnxruntime as o; s=o.InferenceSession(r'$rt\$($man.models.photo_x4)', providers=['CPUExecutionProvider']); print([(i.name,i.shape) for i in s.get_inputs()])" }
+Check 'RIFE models next to the plugin' { if (-not (Test-Path "$rt\vs-plugins\models\rife-v4.26_ensembleFalse\flownet.bin")) { throw 'missing' }; Get-ChildItem "$rt\vs-plugins\models" | ForEach-Object { $_.Name } }
+Check 'TensorRT-RTX files' { Get-ChildItem "$rt\vs-plugins" -Recurse -Filter '*rtx*' | ForEach-Object { '{0,8:N1} MB {1}' -f ($_.Length/1MB), $_.FullName.Substring($rt.Length) }; Get-ChildItem "$rt\vs-plugins\vsmlrt-cuda" -ErrorAction SilentlyContinue | ForEach-Object { $_.Name } }
 if ($fail) { Write-Host "$fail smoke test(s) failed" } else { Write-Host 'all smoke tests passed' }
 exit 0

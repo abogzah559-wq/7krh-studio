@@ -79,7 +79,8 @@ if (-not (Test-Path "$plug\LSMASHSource.dll")) {
 if (-not (Test-Path "$plug\librife.dll")) {
   Get-Url 'https://github.com/styler00dollar/VapourSynth-RIFE-ncnn-Vulkan/releases/download/r9_mod_v33/librife_windows_x86-64.dll' "$plug\librife.dll"
 }
-$rifeM = Join-Path $rt 'models\rife'
+# the RIFE plugin looks for its models in a "models" folder next to librife.dll
+$rifeM = Join-Path $plug 'models'
 foreach ($m in 'rife-v4.6_ensembleFalse', 'rife-v4.22_lite_ensembleFalse', 'rife-v4.25-lite_ensembleFalse', 'rife-v4.26_ensembleFalse') {
   New-Item -ItemType Directory -Force "$rifeM\$m" | Out-Null
   foreach ($f in 'flownet.param', 'flownet.bin') {
@@ -107,6 +108,24 @@ if (-not (Test-Path "$plug\vsort")) {
   Copy-Item (Find-One "$dl\mlrt\scripts" 'vsmlrt.py') "$vs\Lib\site-packages\vsmlrt.py"
   $mz = Get-ChildItem "$dl\mlrt" -Filter 'models.*.7z' | Select-Object -First 1
   Expand-7z $mz.FullName "$rt\models\mlrt" @('models\RealESRGANv2\*', 'models\RealESRGAN\*', '-r')
+}
+
+# ---------------------------------------------------------------- TensorRT-RTX backend (NVIDIA RTX: fastest AI upscale), optional
+if (-not (Test-Path "$plug\vstrt_rtx.dll")) {
+  try {
+    Get-Gh 'AmusementClub/vs-mlrt' 'VSTRT-RTX-Windows-x64.*.7z' "$dl\trtx"
+    $a = Get-ChildItem "$dl\trtx" -Filter 'VSTRT-RTX-*.7z' | Select-Object -First 1
+    Write-Host "--- listing $($a.Name)"; & 7z l $a.FullName | Select-Object -Last 15
+    Expand-7z $a.FullName "$dl\trtx\x"
+    Copy-Item (Find-One "$dl\trtx\x" 'vstrt_rtx.dll') "$plug\vstrt_rtx.dll"
+    Get-Gh 'AmusementClub/vs-mlrt' 'vsmlrt-cuda.*.7z.0*' "$dl\cuda"
+    $c = Get-ChildItem "$dl\cuda" -Filter '*.7z.001' | Select-Object -First 1
+    Write-Host "--- listing $($c.Name) (rtx / cudart)"
+    & 7z l $c.FullName | Select-String -Pattern 'rtx|cudart|nvrtc|onnxparser' | Select-Object -First 40
+    & 7z x -y "-o$plug" $c.FullName 'vsmlrt-cuda\*rtx*' 'vsmlrt-cuda\cudart64*' -r | Out-Null
+    Get-ChildItem "$plug\vsmlrt-cuda" -File | ForEach-Object { '{0,8:N1}  {1}' -f ($_.Length / 1MB), $_.Name }
+    Remove-Item -Recurse -Force "$dl\cuda" -ErrorAction SilentlyContinue
+  } catch { Write-Host "TensorRT-RTX backend skipped: $_" }
 }
 
 # ---------------------------------------------------------------- Real-ESRGAN for real footage/photos (BSD-3): PyTorch weights -> ONNX
@@ -140,7 +159,7 @@ $vspipe = Get-ChildItem $vs -Recurse -Filter 'vspipe.exe' | Select-Object -First
 $an = Get-ChildItem "$rt\models\mlrt" -Recurse -Filter '*.onnx'
 $man = [ordered]@{
   ffmpeg = 'ffmpeg\ffmpeg.exe'; ffprobe = 'ffmpeg\ffprobe.exe'; python = 'vs\python.exe'; vspipe = (Rel $vspipe.FullName)
-  lsmas = 'vs-plugins\LSMASHSource.dll'; rife = 'vs-plugins\librife.dll'; vsort = 'vs-plugins\vsort.dll'; vsncnn = 'vs-plugins\vsncnn.dll'
+  lsmas = 'vs-plugins\LSMASHSource.dll'; rife = 'vs-plugins\librife.dll'; vsort = 'vs-plugins\vsort.dll'; vsncnn = 'vs-plugins\vsncnn.dll'; vstrt = 'vs-plugins\vstrt_rtx.dll'
   models = [ordered]@{
     real_x4 = 'models\esrgan\realesr-general-x4v3.onnx'
     real_x2 = 'models\esrgan\realesr-general-x4v3.onnx'

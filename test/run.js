@@ -30,12 +30,14 @@ t('plain export: ffmpeg only, nvenc hevc, no krypton for self', () => {
   assert(a.includes('hevc_nvenc') && a.includes('-tag:v hvc1') && a.endsWith('out.mp4'), a);
   assert.strictEqual(pl.expect.w, 1920); assert.ok(Math.abs(pl.expect.fps - 29.97) < 0.01);
 });
-t('4K120 enhance: RIFE x4 then x2 upscale, vspipe pipe, tiktok krypton x6', () => {
+t('4K120 enhance: AI upscale (720p working size) then RIFE x4 at 4K, vspipe pipe, tiktok krypton x6', () => {
   const pl = P.buildPlan({ input: 'in.mp4', outPath: 'out.mp4', enhance: { upscale: { on: true, model: 'real' }, framegen: { on: true, model: '4.26' } },
     output: { res: '2160', fps: 120, codec: 'hevc', quality: 'max', tenBit: true }, platform: 'tiktok' }, info, caps);
   assert.strictEqual(pl.steps[0].kind, 'pipe');
-  assert(pl.steps[0].vpy.includes('core.rife.RIFE') && pl.steps[0].vpy.includes('r"r2.onnx"'), pl.steps[0].vpy);
-  assert(pl.steps[0].vpy.indexOf('core.rife.RIFE') < pl.steps[0].vpy.indexOf('vsmlrt.inference'), 'RIFE before upscale');
+  assert(pl.steps[0].vpy.includes('core.rife.RIFE') && pl.steps[0].vpy.includes('r"r4.onnx"'), pl.steps[0].vpy);
+  assert(pl.steps[0].vpy.indexOf('core.rife.RIFE') > pl.steps[0].vpy.indexOf('vsmlrt.inference'), 'upscale before RIFE');
+  assert(pl.steps[0].vpy.includes('Spline36(rgb, 1280, 720)'), 'working size 720p');
+  assert.deepStrictEqual([pl.up.inW, pl.up.inH], [1280, 720]);
   assert.deepStrictEqual([pl.fg.num, pl.fg.den], [4, 1]);
   assert.ok(Math.abs(pl.expect.fps - 119.88) < 0.01, 'reaches 119.88fps'); assert(!pl.steps[0].ffmpeg.join(' ').includes('fps='), 'no frame duplication');
   assert.strictEqual(pl.expect.kfactor, 6);
@@ -58,6 +60,20 @@ t('AI preview frame: vspipe first frame -> png', () => {
   const pl = P.buildPlan({ input: 'in.mp4', outPath: 'p.png', preview: true, trim: { start: 5 }, enhance: { upscale: { on: true, model: 'anime' } }, output: { res: '2160' } }, info, caps);
   assert.strictEqual(pl.steps.length, 1); assert(pl.preview);
   const a = pl.steps[0].ffmpeg.join(' '); assert(a.endsWith('-frames:v 1 p.png') && !a.includes('aac'), a);
-  assert(pl.steps[0].vpy.includes('a2.onnx'), 'anime x2 model for 1080->4K');
+  assert(pl.steps[0].vpy.includes('a4.onnx'), 'anime x4 network');
+});
+t('AI working size: portrait 1440x2560 -> 4K', () => {
+  assert.deepStrictEqual(P.aiInputSize(1440, 2560, 2160, 3840, 'balanced'), [720, 1280]);
+  assert.deepStrictEqual(P.aiInputSize(1440, 2560, 2160, 3840, 'max'), [1080, 1920]);
+  assert.deepStrictEqual(P.aiInputSize(1440, 2560, 2160, 3840, 'fast'), [540, 960]);
+  assert.deepStrictEqual(P.aiInputSize(480, 854, 2160, 3840, 'balanced'), [480, 854]);
+});
+t('frame generation only: RIFE at source size before resize', () => {
+  const pl = P.buildPlan({ input: 'in.mp4', outPath: 'o.mp4', enhance: { framegen: { on: true } }, output: { res: '2160', fps: 60 } }, { ...info, fps: '30/1' }, caps);
+  const v = pl.steps[0].vpy; assert(v.indexOf('core.rife.RIFE') < v.indexOf('Spline36(rgb, 3840, 2160)'), v);
+});
+t('TensorRT backend script', () => {
+  const pl = P.buildPlan({ input: 'in.mp4', outPath: 'o.mp4', enhance: { upscale: { on: true } }, output: { res: '2160' } }, info, { ...caps, upBackend: 'trt', engines: 'E:\\eng' });
+  assert(pl.steps[0].vpy.includes('Backend.TRT_RTX(fp16=True') && pl.steps[0].vpy.includes('engine_folder=r"E:\\eng"'), pl.steps[0].vpy);
 });
 console.log(n, 'tests passed');

@@ -7,7 +7,7 @@
     file: null, info: null, src: null, thumbs: [], tin: 0, tout: 0, speed: 1, crop: 'none',
     adjust: { brightness: 0, contrast: 0, saturation: 0, sharpen: 0 },
     audio: { mode: 'keep', file: null, volume: 1, musicVolume: 1, musicStart: 0 },
-    up: { on: false, model: 'real' }, fg: { on: false, model: '4.26' },
+    up: { on: false, model: 'real', quality: 'balanced' }, fg: { on: false, model: '4.26' },
     out: { res: 'source', fps: 'source', codec: 'hevc', quality: 'high', tenBit: false }, platform: 'self',
   };
   const music = new Audio();
@@ -24,7 +24,7 @@
       $('#eEmpty').hidden = true; vid.hidden = false; $('#cmp').hidden = true;
       $('#eName').textContent = info.name;
       const tags = $('#eTags'); tags.innerHTML = '';
-      [`${info.rotation % 180 ? info.height : info.width}×${info.rotation % 180 ? info.width : info.height}`, (Math.round(fps() * 100) / 100) + ' fps', App.fmtTime(info.duration, false), (info.vcodec || '').toUpperCase() + (info.bitDepth > 8 ? ' 10-bit' : '') + (info.hdr ? ' HDR' : ''), App.fmtSize(info.size)]
+      [`${info.rotation % 180 ? info.height : info.width}×${info.rotation % 180 ? info.width : info.height}`, (Math.round(fps() * 100) / 100) + ' fps', '⏱ ' + App.fmtTime(info.duration, false), (info.vcodec || '').toUpperCase() + (info.bitDepth > 8 ? ' 10-bit' : '') + (info.hdr ? ' HDR' : ''), App.fmtSize(info.size)]
         .forEach(x => { const s = document.createElement('span'); s.className = 'tag'; s.textContent = x; tags.appendChild(s); });
       // Chromium plays H.264/VP9/AV1 (+HEVC with the HW decoder); anything else gets a light proxy for preview only
       st.src = path;
@@ -169,6 +169,7 @@
   $('#upOn').addEventListener('change', e => { st.up.on = e.target.checked; aiHint(); summarySoon(); });
   $('#fgOn').addEventListener('change', e => { st.fg.on = e.target.checked; aiHint(); summarySoon(); });
   seg('#upModel', v => { st.up.model = v; summarySoon(); });
+  seg('#upQ', v => { st.up.quality = v; summarySoon(); });
   seg('#fgModel', v => { st.fg.model = v; summarySoon(); });
   function aiHint() {
     const h = $('#aiHint');
@@ -212,7 +213,30 @@
       $('#oFps').textContent = (Math.round(p.expect.fps * 100) / 100) + ' fps' + (p.fg ? ` · RIFE ×${(p.fg.num / p.fg.den).toFixed(p.fg.den === 1 ? 0 : 2)}` : '');
       $('#oDur').textContent = App.fmtTime(p.expect.dur, false) + (p.expect.kfactor > 1 ? ` → ${App.fmtTime(p.expect.finalDur, false)} (TikTok ×${p.expect.kfactor})` : '');
       $('#oEnc').textContent = p.encoder.replace('_', ' ').toUpperCase();
+      const ui = $('#upInfo');
+      if (p.up) {
+        let txt = t('up_info').replace('{in}', `${p.up.inW}×${p.up.inH}`).replace('{out}', `${p.expect.w}×${p.expect.h}`);
+        const eta = estimate(p); if (eta) txt += ' ' + t('up_info_eta').replace('{t}', App.fmtDur(eta));
+        ui.textContent = txt;
+      } else ui.textContent = '';
     } catch (e) { /* plan errors show at export */ }
+  }
+  /* rough time estimate from this PC's measured speeds (Settings > Diagnostics) */
+  function estimate(p) {
+    const v = App.bench && App.bench.vs; if (!v) return null;
+    const srcFrames = (st.tout - st.tin) * fps();
+    let secs = 0;
+    if (p.up) {
+      const short = Math.min(p.up.inW, p.up.inH), key = short <= 600 ? 540 : short <= 900 ? 720 : 1080;
+      const f = v[`esrgan_${p.up.backend}_${key}p_fps`] || Math.max(v[`esrgan_ort_${key}p_fps`] || 0, v[`esrgan_ncnn_${key}p_fps`] || 0);
+      if (!f) return null;
+      secs += srcFrames / f;
+    }
+    if (p.fg) {
+      const f = v[`rife_4.26_${Math.min(p.expect.w, p.expect.h) > 1300 ? 2160 : 1080}p_fps`];
+      if (f) secs += p.expect.frames / f;
+    }
+    return secs || null;
   }
   function syncAll() {
     syncTrim(); syncAudio(); previewLook(); platHint(); aiHint(); drawTime();
@@ -220,6 +244,7 @@
   }
   document.addEventListener('lang', () => { if (st.file) { syncAudio(); platHint(); aiHint(); summary(); } else platHint(); });
   document.addEventListener('caps', summarySoon);
+  document.addEventListener('bench', summarySoon);
 
   /* ---------------- export ---------------- */
   $('#exportBtn').addEventListener('click', async () => {
@@ -236,7 +261,8 @@
   });
 
   /* ---------------- AI preview (one frame through the real pipeline) ---------------- */
-  let cmp = null;
+  const cmpV = App.Compare($('#cmpCv'), $('#cmp'), z => { $('#cmpZoom').textContent = z + '%'; });
+  $$('#cmp .zoombar [data-z]').forEach(b => b.addEventListener('click', () => cmpV.zoomTo(+b.dataset.z)));
   $('#aiPrev').addEventListener('click', async () => {
     if (!st.file) return;
     if (!st.up.on && !st.fg.on) { App.toast(t('ai_off_hint')); return; }
@@ -244,29 +270,14 @@
     try {
       const r = await S.preview(opts(null, true), st.info, vid.currentTime);
       const [a, b] = await Promise.all([loadImg(App.fileUrl(r.before) + '?' + Date.now()), loadImg(App.fileUrl(r.after) + '?' + Date.now())]);
-      cmp = { a, b, x: 0.5 };
-      $('#cmp').hidden = false; drawCmp();
-    } catch (e) { App.toast(t('err_preview') + ': ' + (e.message || e), 'err', 9000); }
+      $('#cmp').hidden = false;
+      cmpV.set(a, b);
+      cmpV.zoomTo(1); // open at 100%: the detail the AI adds is invisible when a 4K frame is shrunk to fit
+    } catch (e) { App.toast(t('err_preview') + ': ' + String(e.message || e).split('\n')[0], 'err', 9000); }
     busy('');
   });
   const loadImg = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
-  function drawCmp() {
-    if (!cmp) return;
-    const c = $('#cmpCv'), W = cmp.b.naturalWidth, H = cmp.b.naturalHeight;
-    c.width = W; c.height = H;
-    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
-    x.drawImage(cmp.b, 0, 0);
-    const sx = Math.round(W * cmp.x);
-    x.save(); x.beginPath(); x.rect(0, 0, sx, H); x.clip(); x.imageSmoothingEnabled = true; x.drawImage(cmp.a, 0, 0, W, H); x.restore();
-    x.fillStyle = '#fff'; x.fillRect(sx - 1, 0, Math.max(2, W / 900), H);
-  }
-  const cc = $('#cmpCv');
-  let cdrag = false;
-  cc.addEventListener('pointerdown', e => { cdrag = true; cc.setPointerCapture(e.pointerId); cmove(e); });
-  cc.addEventListener('pointermove', e => { if (cdrag) cmove(e); });
-  cc.addEventListener('pointerup', () => { cdrag = false; });
-  function cmove(e) { const r = cc.getBoundingClientRect(); cmp.x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); drawCmp(); }
-  $('#cmpClose').addEventListener('click', () => { $('#cmp').hidden = true; cmp = null; });
+  $('#cmpClose').addEventListener('click', () => { $('#cmp').hidden = true; cmpV.clear(); });
 
   const open = async () => { const f = (await S.open('video'))[0]; if (f) load(f); };
   $('#eOpen').addEventListener('click', open); $('#eOpen2').addEventListener('click', open);

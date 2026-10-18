@@ -134,8 +134,8 @@
   function draw() { if (!raf) raf = requestAnimationFrame(drawNow); }
   function drawNow() {
     raf = 0; if (!srcImg) return;
-    const vw = view.clientWidth || 800, vh = view.clientHeight || 600, fit = Math.min(vw / W, vh / H, 1);
-    const dpr = Math.min(2, devicePixelRatio || 1), pw = Math.max(1, Math.min(Math.round(W * fit * dpr), W)), ph = Math.max(1, Math.round(pw * H / W));
+    const vw = view.clientWidth || 800, vh = view.clientHeight || 600, fit = Math.min(vw / W, vh / H) * 0.94;
+    const dpr = Math.min(2, devicePixelRatio || 1), pw = Math.max(1, Math.round(W * fit * dpr)), ph = Math.max(1, Math.round(pw * H / W));
     if (disp.width !== pw || disp.height !== ph) { disp.width = pw; disp.height = ph; }
     disp.style.width = Math.round(W * fit) + 'px'; disp.style.height = Math.round(H * fit) + 'px';
     const x = cx(disp); x.clearRect(0, 0, pw, ph); x.imageSmoothingQuality = 'high';

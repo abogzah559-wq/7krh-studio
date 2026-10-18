@@ -33,9 +33,25 @@ function defaultOutDir() {
   return d;
 }
 
+/* UI scale follows the window: 1440×880 is the design size; bigger windows (2K/4K, maximized) scale the
+   whole interface up instead of leaving empty space. Coordinates stay consistent because it is a real zoom. */
+let zoom = 1;
+function fitZoom() {
+  if (!win || win.isDestroyed()) return;
+  const [w, h] = win.getContentSize();
+  const z = Math.round(Math.max(1, Math.min(1.6, Math.min(w / 1440, h / 860))) * 20) / 20;
+  if (z === zoom) return;
+  zoom = z;
+  win.webContents.setZoomFactor(z);
+  try { win.setTitleBarOverlay({ height: Math.round(42 * z) }); } catch (e) {}
+}
+
 function createWindow() {
+  const { screen } = require('electron');
+  const wa = screen.getPrimaryDisplay().workAreaSize;
   win = new BrowserWindow({
-    width: 1440, height: 900, minWidth: 1120, minHeight: 720, show: false,
+    width: Math.max(1180, Math.min(wa.width - 80, Math.round(wa.width * 0.82))), height: Math.max(760, Math.min(wa.height - 60, Math.round(wa.height * 0.86))),
+    minWidth: 1120, minHeight: 720, show: false, center: true,
     backgroundColor: '#09070c', title: '7krh Studio',
     icon: path.join(__dirname, '..', 'ui', 'img', 'logo-128.png'),
     titleBarStyle: 'hidden',
@@ -44,7 +60,9 @@ function createWindow() {
   });
   Menu.setApplicationMenu(null);
   win.loadFile(path.join(__dirname, '..', 'ui', 'index.html'));
-  win.once('ready-to-show', () => { win.show(); });
+  win.once('ready-to-show', () => { zoom = 0; fitZoom(); win.show(); });
+  win.on('resize', fitZoom);
+  win.webContents.on('did-finish-load', () => { zoom = 0; fitZoom(); });
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//.test(url)) shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', e => e.preventDefault());
 }
@@ -127,15 +145,24 @@ handle('job:plan', async (opts, info) => {
   return pipeline.buildPlan(opts, info, capsFor(c, s, os.tmpdir()));
 });
 function capsFor(c, s, tmp) {
-  return { encoders: c.encoders, gpu: s.gpu ?? 0, upBackend: s.upBackend === 'auto' ? (bench.bestBackend(UD()) || 'ort') : s.upBackend, paths: rt.paths(), tmp };
+  return { encoders: c.encoders, gpu: s.gpu ?? 0, upBackend: s.upBackend === 'auto' || !s.upBackend ? (bench.bestBackend(UD()) || 'ort') : s.upBackend,
+    paths: rt.paths(), tmp, engines: path.join(UD(), 'engines') };
 }
+/* one L-SMASH index per source file (indexing a long 4K clip takes seconds; previews reuse it) */
+function lwiFor(input) {
+  let st = null; try { st = fs.statSync(input); } catch (e) {}
+  const key = require('crypto').createHash('sha1').update(input + '|' + (st ? st.size + '|' + st.mtimeMs : '')).digest('hex').slice(0, 16);
+  return path.join(media.tmpDir('index'), key + '.lwi');
+}
+const LOGS = () => path.join(app.getPath('documents'), '7krh Studio', 'logs');
+const stamp = () => new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 handle('job:start', async (opts, info) => {
   const c = await gpu.caps(UD());
   const s = readSettings();
   const id = ++jid;
   const tmp = media.tmpDir('job' + id);
-  const plan = pipeline.buildPlan(opts, info, capsFor(c, s, tmp));
-  const j = new Job(id, plan, ev => win && win.webContents.send('job:event', ev));
+  const plan = pipeline.buildPlan(opts, info, { ...capsFor(c, s, tmp), lwi: lwiFor(opts.input) });
+  const j = new Job(id, plan, ev => win && win.webContents.send('job:event', ev), path.join(LOGS(), `export-${stamp()}-${id}.txt`));
   jobs.set(id, j);
   const t0 = Date.now();
   j.run(tmp).then(() => {
@@ -151,12 +178,13 @@ handle('job:preview', async (opts, info, t) => {
   const s = readSettings();
   const tmp = media.tmpDir('prev' + Date.now());
   const after = path.join(tmp, 'after.png');
-  const plan = pipeline.buildPlan({ ...opts, outPath: after, preview: true, trim: { start: t, end: t + 1 } }, info, capsFor(c, s, tmp));
-  const j = new Job(0, plan, () => {});
+  const plan = pipeline.buildPlan({ ...opts, outPath: after, preview: true, trim: { start: t, end: t + 1 } }, info, { ...capsFor(c, s, tmp), lwi: lwiFor(opts.input) });
+  const j = new Job(0, plan, () => {}, path.join(LOGS(), `preview-${stamp()}.txt`));
   const before = media.frame(opts.input, t, path.join(tmp, 'before.png'));
+  const t0 = Date.now();
   await j.run(tmp);
   await before;
-  return { before: path.join(tmp, 'before.png'), after, plan: { up: plan.up, fg: plan.fg, w: plan.expect.w, h: plan.expect.h } };
+  return { before: path.join(tmp, 'before.png'), after, secs: (Date.now() - t0) / 1000, plan: { up: plan.up, fg: plan.fg, w: plan.expect.w, h: plan.expect.h } };
 });
 handle('diag:cached', async () => bench.cached(UD()));
 handle('job:cancel', async id => { const j = jobs.get(id); if (j) j.cancel(); return true; });
