@@ -33,7 +33,7 @@ Check 'vs-mlrt plugins load' { & $py -c "import vapoursynth as vs, glob, os; c=v
 Check 'ORT DirectML session (BiRefNet)' { & $py -c @"
 import onnxruntime as o, time
 t=time.time()
-s=o.InferenceSession(r'$rt\models\birefnet\birefnet_fp16.onnx', providers=['DmlExecutionProvider','CPUExecutionProvider'])
+s=o.InferenceSession(r'$rt\models\birefnet\birefnet.onnx', providers=['DmlExecutionProvider','CPUExecutionProvider'])
 print('providers', s.get_providers(), 'inputs', [(i.name,i.shape,i.type) for i in s.get_inputs()], 'outputs', [(i.name,i.shape,i.type) for i in s.get_outputs()], round(time.time()-t,1),'s')
 "@ }
 # AI upscale through the real export pipeline builder (CPU backend here: the runner has no GPU)

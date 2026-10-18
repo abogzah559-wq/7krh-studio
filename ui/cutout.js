@@ -3,14 +3,14 @@
   'use strict';
   const { $, $$, S, t } = App;
   const items = []; let cur = -1, mode = 'view', split = 0;
-  const opt = { bg: 'none', color: '#ffffff', blur: 45, sharp: 0, clean: 10, crop: false, fmt: 'png' };
+  const opt = { smart: true, bg: 'none', color: '#ffffff', blur: 45, sharp: 0, clean: 10, crop: false, fmt: 'png' };
   const COLORS = ['#ffffff', '#000000', '#f2f2f2', '#ff4f9a', '#ff8a3d', '#ffd84f', '#4fe3a2', '#4fa8ff', '#1e3a8a', '#7c3aed'];
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
   const cx = c => c.getContext('2d');
   const view = $('#bgCv'), disp = $('#bgCanvas'), curEl = $('#bgCur');
 
   /* per-image working state (only the selected one keeps big buffers) */
-  let W = 0, H = 0, MW = 0, MH = 0, srcImg = null, raw = null, baseC = null, addC = null, subC = null, strokes = [], bgImg = null, blurC = null, blurKey = '';
+  let W = 0, H = 0, MW = 0, MH = 0, srcImg = null, raw = null, baseC = null, addC = null, subC = null, addS = null, subS = null, gray = null, strokes = [], bgImg = null, blurC = null, blurKey = '';
 
   async function add(paths) {
     for (const p of paths) {
@@ -66,7 +66,9 @@
     const d = cx(mc).getImageData(0, 0, mc.width, mc.height).data;
     raw = new Uint8Array(mc.width * mc.height); for (let p = 0, j = 0; p < raw.length; p++, j += 4) raw[p] = d[j];
     raw.w = mc.width; raw.h = mc.height;
-    baseC = mk(MW, MH); addC = mk(MW, MH); subC = mk(MW, MH);
+    baseC = mk(MW, MH); addC = mk(MW, MH); subC = mk(MW, MH); addS = mk(MW, MH); subS = mk(MW, MH);
+    { const g = mk(MW, MH), gx = cx(g); gx.imageSmoothingQuality = 'high'; gx.drawImage(srcImg, 0, 0, MW, MH); const d = gx.getImageData(0, 0, MW, MH).data;
+      gray = new Float32Array(MW * MH); for (let p = 0, j = 0; p < gray.length; p++, j += 4) gray[p] = (0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2]) / 255; }
     strokes = it.strokes || []; replay(false);
     levels(); disp.hidden = false; draw(); updUndo();
     $('#bgSave').disabled = false;
@@ -104,8 +106,45 @@
   function replay(redraw = true) {
     cx(addC).clearRect(0, 0, MW, MH); cx(subC).clearRect(0, 0, MW, MH);
     for (const s of strokes) for (let i = 0; i < s.pts.length; i++) paintSeg(s, i);
+    snapAll();
     if (redraw) { updUndo(); draw(); }
   }
+
+  /* Smart brush: a painted stroke is snapped to the real edges of the photo with a guided filter, so a rough
+     stroke over a sleeve or a strand of hair follows the object outline instead of leaving a round blob. */
+  function boxBlur(a, w, h, r) {
+    const o = new Float32Array(w * h), I = new Float64Array((w + 1) * (h + 1));
+    for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { row += a[y * w + x]; I[(y + 1) * (w + 1) + x + 1] = I[y * (w + 1) + x + 1] + row; } }
+    for (let y = 0; y < h; y++) {
+      const y0 = Math.max(0, y - r), y1 = Math.min(h, y + r + 1);
+      for (let x = 0; x < w; x++) {
+        const x0 = Math.max(0, x - r), x1 = Math.min(w, x + r + 1);
+        o[y * w + x] = (I[y1 * (w + 1) + x1] - I[y0 * (w + 1) + x1] - I[y1 * (w + 1) + x0] + I[y0 * (w + 1) + x0]) / ((y1 - y0) * (x1 - x0));
+      }
+    }
+    return o;
+  }
+  function snapLayer(src, dst) {
+    const x = cx(dst); x.clearRect(0, 0, MW, MH);
+    if (!opt.smart || !gray) { x.drawImage(src, 0, 0); return; }
+    const d = cx(src).getImageData(0, 0, MW, MH), D = d.data, n = MW * MH, p = new Float32Array(n);
+    let any = false; for (let i = 0, j = 3; i < n; i++, j += 4) { p[i] = D[j] / 255; if (D[j]) any = true; }
+    if (!any) return;
+    const r = Math.max(2, Math.round(Math.max(MW, MH) / 320)), eps = 4e-3, I = gray;
+    const mI = boxBlur(I, MW, MH, r), mp = boxBlur(p, MW, MH, r);
+    const Ip = new Float32Array(n), II = new Float32Array(n); for (let i = 0; i < n; i++) { Ip[i] = I[i] * p[i]; II[i] = I[i] * I[i]; }
+    const mIp = boxBlur(Ip, MW, MH, r), mII = boxBlur(II, MW, MH, r), A = new Float32Array(n), B = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const a = (mIp[i] - mI[i] * mp[i]) / (mII[i] - mI[i] * mI[i] + eps); A[i] = a; B[i] = mp[i] - a * mI[i]; }
+    const mA = boxBlur(A, MW, MH, r), mB = boxBlur(B, MW, MH, r);
+    for (let i = 0, j = 0; i < n; i++, j += 4) {
+      let q = mA[i] * I[i] + mB[i]; q = q < 0 ? 0 : q > 1 ? 1 : q;
+      // stay inside the painted area (slightly feathered), keep the stroke core solid
+      q = p[i] > 0.98 && mp[i] > 0.98 ? 1 : Math.min(q, mp[i] > 0.02 ? 1 : 0) * (p[i] > 0 || mp[i] > 0.3 ? 1 : 0);
+      D[j] = D[j + 1] = D[j + 2] = 255; D[j + 3] = Math.round(q * 255);
+    }
+    x.putImageData(d, 0, 0);
+  }
+  function snapAll() { if (!addS) return; snapLayer(addC, addS); snapLayer(subC, subS); }
   function updUndo() { $('#bgUndo').disabled = $('#bgClearEd').disabled = !strokes.length; if (items[cur]) items[cur].strokes = strokes; }
   $('#bgUndo').addEventListener('click', () => { strokes.pop(); replay(); });
   $('#bgClearEd').addEventListener('click', () => { strokes = []; replay(); });
@@ -113,8 +152,9 @@
   /* compose: background + cut-out (+ ghost of the removed part while brushing) */
   function finalMask(c, w, h) {
     const x = cx(c); x.clearRect(0, 0, w, h); x.imageSmoothingQuality = 'high';
-    x.drawImage(baseC, 0, 0, w, h); x.drawImage(addC, 0, 0, w, h);
-    x.globalCompositeOperation = 'destination-out'; x.drawImage(subC, 0, 0, w, h); x.globalCompositeOperation = 'source-over';
+    const A = drag && drag.s ? addC : addS, B = drag && drag.s ? subC : subS;
+    x.drawImage(baseC, 0, 0, w, h); x.drawImage(A, 0, 0, w, h);
+    x.globalCompositeOperation = 'destination-out'; x.drawImage(B, 0, 0, w, h); x.globalCompositeOperation = 'source-over';
   }
   function getBlur() {
     const key = W + ':' + opt.blur; if (blurC && blurKey === key) return blurC;
@@ -175,7 +215,7 @@
     if (drag.split) setSplit(e);
     else { for (const ev of (e.getCoalescedEvents ? e.getCoalescedEvents() : [e])) { drag.s.pts.push(toMask(ev)); paintSeg(drag.s, drag.s.pts.length - 1); } draw(); }
   });
-  disp.addEventListener('pointerup', () => { drag = null; });
+  disp.addEventListener('pointerup', () => { const was = drag && drag.s; drag = null; if (was) { snapAll(); draw(); } });
   disp.addEventListener('pointerleave', () => { if (!drag) curEl.hidden = true; });
   function setSplit(e) { const r = disp.getBoundingClientRect(); split = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); draw(); }
   $$('.mbtn').forEach(b => b.addEventListener('click', () => {
@@ -200,6 +240,7 @@
   $('#bgSharp').addEventListener('input', e => { opt.sharp = +e.target.value; $('#v-sharp').textContent = e.target.value; levelsSoon(); });
   $('#bgClean').addEventListener('input', e => { opt.clean = +e.target.value; $('#v-clean').textContent = e.target.value; levelsSoon(); });
   $('#bgCrop').addEventListener('change', e => { opt.crop = e.target.checked; });
+  $('#bgSmart').addEventListener('change', e => { opt.smart = e.target.checked; snapAll(); draw(); });
 
   /* export at full resolution */
   function bbox(m) {
@@ -209,8 +250,8 @@
   }
   async function renderFull() {
     const M = maskCanvas(W, H), mx = cx(M);
-    mx.imageSmoothingQuality = 'high'; mx.drawImage(addC, 0, 0, W, H);
-    mx.globalCompositeOperation = 'destination-out'; mx.drawImage(subC, 0, 0, W, H); mx.globalCompositeOperation = 'source-over';
+    mx.imageSmoothingQuality = 'high'; mx.drawImage(addS, 0, 0, W, H);
+    mx.globalCompositeOperation = 'destination-out'; mx.drawImage(subS, 0, 0, W, H); mx.globalCompositeOperation = 'source-over';
     let fx = 0, fy = 0, fw = W, fh = H;
     if (opt.crop) { const sm = mk(MW, MH); cx(sm).drawImage(M, 0, 0, MW, MH); const b = bbox(sm); if (b) { const k = W / MW, p = Math.round(Math.max(b[2] - b[0], b[3] - b[1]) * k * 0.05); fx = Math.max(0, Math.floor(b[0] * k - p)); fy = Math.max(0, Math.floor(b[1] * k - p)); fw = Math.min(W, Math.ceil(b[2] * k + p)) - fx; fh = Math.min(H, Math.ceil(b[3] * k + p)) - fy; } }
     const cut = mk(W, H), c = cx(cut); c.drawImage(srcImg, 0, 0); c.globalCompositeOperation = 'destination-in'; c.drawImage(M, 0, 0);
