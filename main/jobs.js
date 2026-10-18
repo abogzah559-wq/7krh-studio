@@ -130,10 +130,19 @@ class Job {
         i++;
       } else if (st.kind === 'ffmpeg') {
         this.emit({ type: 'phase', phase: st.post ? 'platform' : (st.phase || 'encode'), step: i + 1, steps: mainSteps });
-        const ff = this.spawn(st.ffmpeg[0], st.ffmpeg.slice(1));
-        if (!st.post) this.progressReader(ff.stdout, stTotal, 0.97 / mainSteps, i * 0.97 / mainSteps);
-        const c = await this.waitExit(ff);
-        if (this.cancelled) throw new Error('cancelled');
+        let c;
+        for (let attempt = 0; ; attempt++) {
+          this.stalled = null; this._lastFrame = undefined;
+          // a stalled run is retried once with a single-threaded filter graph (rare ffmpeg scheduling stall)
+          const args = attempt ? [st.ffmpeg[1], '-filter_complex_threads', '1', ...st.ffmpeg.slice(2)] : st.ffmpeg.slice(1);
+          const ff = this.spawn(st.ffmpeg[0], args);
+          if (!st.post) this.progressReader(ff.stdout, stTotal, 0.97 / mainSteps, i * 0.97 / mainSteps);
+          c = await this.waitExit(ff);
+          if (this.cancelled) throw new Error('cancelled');
+          if (!(this.stalled && attempt === 0)) break;
+          this.logLine('retrying the step once after a stall');
+          this.emit({ type: 'phase', phase: st.post ? 'platform' : (st.phase || 'encode'), step: i + 1, steps: mainSteps, retry: true });
+        }
         if (c !== 0) throw new Error((this.stalled ? `ffmpeg stopped responding` : `ffmpeg failed (${c})`) + '\n' + this.log.slice(-25).join('\n'));
         if (!st.post) i++;
       } else if (st.kind === 'patch') {
