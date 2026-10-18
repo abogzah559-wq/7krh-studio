@@ -1,0 +1,30 @@
+name: lab
+on:
+  push:
+    branches: [lab]
+permissions:
+  contents: write
+jobs:
+  bg:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install onnxruntime==1.22.0 numpy pillow
+      - name: models
+        run: |
+          mkdir -p m && cd m
+          R=https://github.com/ZhengPeng7/BiRefNet/releases/download/v1
+          for n in BiRefNet_HR-general-epoch_130 BiRefNet_HR-matting-epoch_135 BiRefNet-matting-epoch_100; do curl -sSLf -o $n.onnx $R/$n.onnx; done
+          curl -sSLf -o general.onnx https://github.com/danielgatis/rembg/releases/download/v0.0.0/BiRefNet-general-epoch_244.onnx
+          curl -sSLf -o anime.onnx https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-anime.onnx
+          ls -la
+      - name: run
+        run: python lab.py 2>&1 | tee out/log.txt
+      - name: push results
+        if: always()
+        run: |
+          cd out && git init -q -b lab-out && git add -A && git -c user.name=ci -c user.email=ci@7krh.dev commit -q -m "lab ${GITHUB_RUN_ID}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}" lab-out
