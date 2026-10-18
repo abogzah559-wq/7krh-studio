@@ -1,0 +1,16 @@
+matting animal-2.jpg [1, 3, 1024, 1024]
+done 33.2 s
+matting anime-girl-1.jpg [1, 3, 1024, 1024]
+done 29.8 s
+matting anime-girl-2.jpg [1, 3, 1024, 1024]
+done 19.7 s
+matting car-1.jpg [1, 3, 1024, 1024]
+done 19.7 s
+matting girl-1.jpg [1, 3, 1024, 1024]
+done 19.7 s
+matting girl-3.jpg [1, 3, 1024, 1024]
+done 19.7 s
+matting plants-1.jpg [1, 3, 1024, 1024]
+done 19.9 s
+matting user-anime.jpg [1, 3, 1024, 1024]
+done 19.9 s
