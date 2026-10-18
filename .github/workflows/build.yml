@@ -85,6 +85,16 @@ jobs:
           gh release delete test-build -y --cleanup-tag 2>/dev/null || true
           gh release create test-build "$f" --prerelease --title "Test build ${GITHUB_SHA::7}" --notes "Automatic test build from ${GITHUB_SHA}."
 
+      - name: Publish branch beta (pre-release with a direct download link)
+        if: ${{ hashFiles('build/installer.nsh') != '' && github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+        shell: bash
+        run: |
+          f=$(ls dist/*.exe | head -1)
+          v=$(node -p "require('./package.json').version")
+          tag="v${v}-beta"
+          gh release delete "$tag" -y --cleanup-tag 2>/dev/null || true
+          gh release create "$tag" "$f" --prerelease --target "${GITHUB_SHA}" --title "7krh Studio ${v} beta" --notes-file RELEASE_NOTES.md
+
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
