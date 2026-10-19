@@ -18,4 +18,9 @@
 - **Images**: an automatic model suggestion, ×2/×3/×4 scaling, AI strength, keep or strip ICC/EXIF, and transparency kept for PNG/WebP. Tiles retry at a smaller size when the card runs out of memory.
 - **Audio tool**: RNNoise AI voice cleaning, fades, −14 LUFS loudness, and MP3/M4A/WAV/FLAC output.
 - **New interface** in the 7krh website's style, with a "Buy me a coffee" button that opens the website's support page.
-- **Removed**: background removal, including the BiRefNet model.
+- **Removed**: background removal, including the BiRefNet model.## 0.3.3
+- TensorRT (NVIDIA): ships onnxconverter-common, which vs-mlrt needs to convert the model to FP16 before building the engine (0.3.2 stopped at "No module named 'modelopt'"). The CI now runs that exact conversion.
+- Title bar: stays clear of the window buttons on whichever side Windows draws them (the app name was cut off in Arabic).
+- TikTok: the hint now says plainly that the stretched file plays slowed down on a computer, as on the website.
+
+

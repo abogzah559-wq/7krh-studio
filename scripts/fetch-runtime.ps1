@@ -72,6 +72,12 @@ if (-not (Test-Path "$vs\Lib\site-packages\onnx")) {
     'onnx==1.17.0' 'protobuf>=5,<6'
   if ($LASTEXITCODE -ne 0) { throw 'pip onnx failed' }
 }
+# ...and converts it to FP16 with onnxconverter-common (without it vs-mlrt falls back to NVIDIA modelopt, which is not shipped)
+if (-not (Test-Path "$vs\Lib\site-packages\onnxconverter_common")) {
+  & python -m pip install --disable-pip-version-check --no-compile --target "$vs\Lib\site-packages" --only-binary=:all: --python-version 3.12 --platform win_amd64 --no-deps `
+    'onnxconverter-common' 'packaging'
+  if ($LASTEXITCODE -ne 0) { throw 'pip onnxconverter-common failed' }
+}
 
 # ---------------------------------------------------------------- VapourSynth plugins
 $plug = Join-Path $rt 'vs-plugins'

@@ -75,7 +75,7 @@ window.I18N = {
     p_tiktok_h: 'TikTok caps clips at 30 fps, so the disguise is applied: the file reads as 30 fps while it really holds 60 or 120.',
     p_instagram_h: 'No disguise: the clip is delivered as is. Reels use 1080×1920.', p_youtube_h: 'No disguise: the clip is delivered as is. 1440p and 4K trigger YouTube\'s higher-quality encoding.',
     techL: 'Disguise method', tKr: 'Krypton — remux (default)', tPa: 'PATCH — edit the header directly', fxL: 'Duration stretch factor', fxAuto: 'Auto like Krypton (×2, or ×6 at 110 fps or more)', fx30: 'Exactly 30 fps (like PATCH)',
-    fxH: 'Clip is {f} fps → TikTok reads it as {d} fps (×{k}).', fxHlow: 'Clip is {f} fps or less, no disguise needed.', fxHenh: 'With re-encoding the disguise is applied to the output by editing its header.',
+    fxH: 'Clip is {f} fps → TikTok reads it as {d} fps (×{k}). The file is stretched ×{k}, so it plays slowed down in players on your computer — that is the disguise, as on the website.', fxHlow: 'Clip is {f} fps or less, no disguise needed.', fxHenh: 'With re-encoding the disguise is applied to the output by editing its header.',
     codec_ext_hevc: 'Windows Media Player and Photos need the "HEVC Video Extensions" to show HEVC (it plays in 7krh Studio, VLC, TikTok and YouTube). H.264 plays everywhere.',
     codec_ext_av1: 'Windows players need the free "AV1 Video Extension" for AV1. H.264 plays everywhere.',
     /* images */
@@ -188,7 +188,7 @@ window.I18N = {
     p_tiktok_h: 'يحدّ تيك توك المقاطع عند 30 إطارًا، لذلك يُطبَّق التمويه: يقرأ الملفَ على أنه 30 إطارًا بينما يحمل فعليًا 60 أو 120.',
     p_instagram_h: 'بدون تمويه: يُسلَّم المقطع كما هو. مقاطع Reels بمقاس 1080×1920.', p_youtube_h: 'بدون تمويه: يُسلَّم المقطع كما هو. دقة 1440p و4K تفعّل ترميزًا أعلى جودة في يوتيوب.',
     techL: 'طريقة التمويه', tKr: 'Krypton — إعادة تغليف (الافتراضي)', tPa: 'PATCH — تعديل الترويسة مباشرة', fxL: 'عامل تمديد المدة', fxAuto: 'تلقائي مثل Krypton (×2، أو ×6 عند 110 إطارات فأكثر)', fx30: 'إلى 30 إطارًا بالضبط (مثل PATCH)',
-    fxH: 'المقطع بمعدل {f} إطار/ث ← يقرؤه تيك توك بمعدل {d} إطار/ث (×{k}).', fxHlow: 'معدل المقطع {f} إطار/ث أو أقل، فلا يحتاج إلى تمويه.', fxHenh: 'مع إعادة الترميز يُطبَّق التمويه على الناتج بتعديل الترويسة.',
+    fxH: 'المقطع بمعدل {f} إطار/ث ← يقرؤه تيك توك بمعدل {d} إطار/ث (×{k}). مدة الملف تتمدد ×{k}، لذلك يظهر بطيئًا في مشغّلات الكمبيوتر — وهذا هو التمويه نفسه كما في أداة الموقع.', fxHlow: 'معدل المقطع {f} إطار/ث أو أقل، فلا يحتاج إلى تمويه.', fxHenh: 'مع إعادة الترميز يُطبَّق التمويه على الناتج بتعديل الترويسة.',
     codec_ext_hevc: 'مشغّل ويندوز وتطبيق الصور يحتاجان إضافة «HEVC Video Extensions» لعرض HEVC (يعمل داخل 7krh Studio وVLC وتيك توك ويوتيوب). H.264 يعمل في كل مكان.',
     codec_ext_av1: 'مشغّلات ويندوز تحتاج إضافة «AV1 Video Extension» المجانية. H.264 يعمل في كل مكان.',
     img_add: 'إضافة صور', img_clear: 'مسح', img_drop: 'اسحب الصور إلى هنا', img_drop_sub: 'PNG · JPEG · WebP · BMP · TIFF · AVIF', img_model: 'النموذج',

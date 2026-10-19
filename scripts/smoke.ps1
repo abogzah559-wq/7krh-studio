@@ -11,6 +11,9 @@ function Check($name, [scriptblock]$b) {
 Check 'ffmpeg encoders' { & "$rt\ffmpeg\ffmpeg.exe" -hide_banner -encoders | Select-String 'nvenc|amf|qsv|libx264|libx265|svtav1' }
 Check 'python + onnxruntime' { & $py -c "import onnxruntime as o, numpy, PIL; print(o.__version__, o.get_available_providers())" }
 Check 'onnx package for TensorRT' { & $py -c "import onnx; print('onnx', onnx.__version__)" }
+# the exact FP16 conversion vs-mlrt's TensorRT-RTX backend runs before building its engine (needs no GPU)
+$m16 = (Get-ChildItem "$rt\models" -Recurse -Filter 'realesr-general-x4v3.onnx' | Select-Object -First 1).FullName
+Check 'TensorRT FP16 model conversion' { & $py -c "import vsmlrt, onnx, os, sys; o=os.path.join(os.environ['TEMP'],'t16.onnx'); vsmlrt.convert_model(sys.argv[1], o, fp16=True); m=onnx.load(o); print('fp16 ok', os.path.getsize(o))" $m16 }
 Check 'vapoursynth core' { & $py -c "import vapoursynth as vs; print(vs.core.version())" }
 $vspipe = Get-ChildItem "$rt\vs" -Recurse -Filter 'vspipe.exe' | Select-Object -First 1
 Write-Host "vspipe: $($vspipe.FullName)"
