@@ -35,7 +35,10 @@ button{cursor:pointer;background:none;border:0;padding:0}
 ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:9px;border:2px solid transparent;background-clip:padding-box}::-webkit-scrollbar-thumb:hover{background:rgba(255,106,169,.45);background-clip:padding-box;border:2px solid transparent}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-corner{background:transparent}
 
 /* ---------- shell ---------- */
-.titlebar{position:fixed;inset:0 0 auto 0;height:var(--top);display:flex;align-items:center;gap:12px;direction:ltr;padding:0 146px 0 14px;-webkit-app-region:drag;z-index:50;background:var(--ink);border-bottom:1px solid var(--line-2)}
+.titlebar{position:fixed;top:0;left:0;right:0;height:var(--top);display:flex;align-items:center;gap:12px;direction:ltr;padding:0 14px;
+  /* keep clear of the window buttons on whichever side Windows draws them (they move to the left when the window is mirrored for Arabic) */
+  padding-left:calc(env(titlebar-area-x, 0px) + 14px);
+  padding-right:calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - 146px)) + 14px);-webkit-app-region:drag;z-index:50;background:var(--ink);border-bottom:1px solid var(--line-2)}
 .titlebar .brand{display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.3px}
 .titlebar .brand img{width:24px;height:24px;border-radius:50%;border:1px solid rgba(255,106,169,.7);box-shadow:0 0 12px rgba(255,79,154,.4)}
 .titlebar .brand b{font-size:14.5px}.titlebar .brand span{font-weight:600;color:var(--txt-2);font-size:14px}
