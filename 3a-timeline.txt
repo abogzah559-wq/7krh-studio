@@ -1,0 +1,27 @@
+OK   render + verify  {"ok":true,"problems":[],"dur":4.5,"w":640,"h":360,"fps":"30/1","audio":true,"size":587893,"vcodec":"h264","acodec":"aac"} 306.6s
+OK   animated red box at t=0  128,72 251,0,0
+OK   animated red box at t=1 (centre)  320,72
+OK   animated red box at t=1.8  473.6,72
+OK   red box gone after its clip (t=3.2, left side)
+OK   text invisible at its start (opacity keyframe 0)  253,253,0
+OK   text fully visible at t=2.5  0,0,252
+OK   text half transparent at t=1.5 (blend of blue over yellow)  126,126,126
+OK   green image dissolving in at t=3.25  0,133,0
+OK   green image full at t=4.2
+OK   scaled + rotated box (perspective) covers the vertical extent  251,0,0
+OK   …and not the horizontal one  0,252,0
+OK   audio stream present
+OK   TikTok PATCH ×2 doubles the duration and halves the fps  {"fps":15,"dur":9}
+OK   TikTok Krypton remux ×2 verified  {"ok":true,"problems":[],"dur":8.98,"w":640,"h":360,"fps":"4050/269","audio":true,"size":587909,"vcodec":"h264","acodec":"aac"}
+OK   to30 on 30 fps refused (lowFps, like the site)
+… WebM step: building plan
+… WebM step: running
+OK   WebM VP9 bitrate + soft subtitles  {"ok":true,"problems":[],"dur":4.508,"w":640,"h":360,"fps":"30/1","audio":true,"size":633127,"vcodec":"vp9","acodec":"opus"}
+… WebM step: probing
+OK   subtitle stream muxed  video,audio,subtitle
+DIAG vp9 default: ok 2.6s
+DIAG vp9 row-mt 0: ok 2.7s
+DIAG vp9 realtime: ok 0.8s
+DIAG vp9 threads 1: ok 3.6s
+DIAG av1 svt in webm: ok 51.3s
+timeline e2e passed

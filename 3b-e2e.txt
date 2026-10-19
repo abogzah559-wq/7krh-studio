@@ -1,0 +1,12 @@
+runtime {"ffmpeg":true,"python":true,"vspipe":true,"lsmas":true,"rife":true,"upscale":true,"photo":true,"ok":true,"root":"D:\\a\\7krh-studio\\7krh-studio\\runtime"}
+probe {"path":"C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\7k-X6LVvr\\src.mp4","name":"src.mp4","size":80954,"kind":"video","width":320,"height":180,"rotation":0,"fps":"30/1","duration":2,"vcodec":"h264","pixFmt":"yuv420p","bitDepth":8,"colorSpace":null,"colorTransfer":null,"hdr":false,"hasAudio":true,"acodec":"aac","bitrate":323816,"frames":60,"fpsNum":30,"colorPrimaries":null,"sampleRate":48000,"channels":1,"container":"mov,mp4,m4a,3gp,3g2,mj2"}
+OK   plain export (trim, speed 2x, 1080p, hevc, music mix) 4.5s {"w":1920,"h":1080,"fps":"30/1","dur":0.8,"audio":true,"enc":"libx265"}
+OK   AI upscale x4 (ORT CPU) through vspipe 12.3s {"w":1280,"h":720,"fps":"30/1","dur":0.5,"audio":true,"enc":"libx264"}
+OK   AI upscale anime + crop 9:16 2.8s {"w":720,"h":1270,"fps":"60/1","dur":0.5,"audio":true,"enc":"libx264"}
+OK   AI preview frame 0.3s {"size":4348}
+OK   image engine: analyze 0.4s {"w":640,"h":480,"flat":0.871,"colours":373,"noise":0,"suggest":"anime","alpha":false,"icc":false,"exif":false,"format":"PNG","bytes":33510,"id":1,"ok":true}
+OK   image engine: upscale x2 (real, CPU, strength 0.7, strip metadata) 5.9s {"w":1280,"h":960,"inW":640,"inH":480,"ms":5921,"bytes":325925,"model":"real","device":"cpu","provider":"CPUExecutionProvider","mode":"cpu","tile":640,"alphaKept":false,"alphaDropped":false,"id":2,"ok":true}
+OK   image engine: GPU-only refuses to fall back silently on a runner without a GPU 0.3s {"refused":true}
+OK   GPU lists per API (DXGI / Vulkan) 0.1s {"dxgi":[{"index":0,"name":"Microsoft Basic Render Driver","vendor":5140,"vramMB":0,"software":false},{"index":1,"name":"Microsoft Basic Render Driver","vendor":5140,"vramMB":0,"software":true}],"vulkan":[],"errors":["vulkan: vkCreateInstance -9"]}
+OK   performance-test clip builder works in the bundled VapourSynth 0.1s {"ok":[1280,720,6]}
+e2e passed

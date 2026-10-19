@@ -1,0 +1,20 @@
+ok targetSize landscape/portrait/cap
+ok upscaleFactor
+ok TikTok factor (same rules as the website tool)
+ok copy plans: krypton remux / patch / plain copy
+ok plain export: ffmpeg only, nvenc hevc, no krypton for self
+ok 4K120 enhance: AI upscale (720p working size) then RIFE x4 at 4K, vspipe pipe
+ok speed 2x + music mix + trim
+ok portrait rotated phone video to 1080 + crop 9:16 no-op
+ok no NVIDIA -> software fallback
+ok AI preview frame: vspipe first frame -> png
+ok AI working size: portrait 1440x2560 -> 4K
+ok frame generation only: RIFE at source size before resize
+ok TensorRT backend script
+ok timeline: export expressions equal the preview maths at every time
+ok timeline: split keeps the source times and keyframes
+ok timeline: reverse + speed source mapping
+ok subtitles: SRT + ASS import, SRT export round trip
+ok timeline: colour filter graph is the preview maths
+ok bitrate mode replaces constant quality
+19 tests passed

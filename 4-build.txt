@@ -1,0 +1,42 @@
+npm warn deprecated rimraf@2.6.3: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated boolean@3.2.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+
+added 320 packages in 20s
+  • electron-builder  version=26.15.3 os=10.0.26100
+  • loaded configuration  file=package.json ("build" field)
+  • executing @electron/rebuild  electronVersion=38.8.6 arch=x64 buildFromSource=false workspaceRoot=D:\a\7krh-studio\7krh-studio projectDir=./ appDir=./
+  • installing native dependencies  arch=x64
+  • completed installing native dependencies
+  • packaging       platform=win32 arch=x64 electron=38.8.6 appOutDir=dist\win-unpacked
+  • downloaded      label=electron progress=100%
+  • downloaded electron zip extracted successfully  output=D:\a\7krh-studio\7krh-studio\dist\win-unpacked
+  • searching for node modules  pm=npm searchDir=D:\a\7krh-studio\7krh-studio
+  • searching for node modules  pm=traversal searchDir=D:\a\7krh-studio\7krh-studio
+  • using manual traversal of node_modules to build dependency tree
+  • no node modules returned while searching directories  searchDirectories=[""]
+  • updating asar integrity executable resource  executablePath=dist\win-unpacked\7krh Studio.exe
+  • signing with signtool.exe  path=dist\win-unpacked\resources\runtime\vs-plugins\vsmlrt-cuda\tensorrt_rtx.exe
+  • signing with signtool.exe  path=dist\win-unpacked\resources\runtime\vs\python.exe
+  • signing with signtool.exe  path=dist\win-unpacked\resources\runtime\vs\pythonw.exe
+  • signing with signtool.exe  path=dist\win-unpacked\resources\runtime\vs\Lib\site-packages\vapoursynth\vspipe.exe
+  • signing with signtool.exe  path=dist\win-unpacked\resources\runtime\vs\Lib\site-packages\bin\coloredlogs.exe
+  • signing with signtool.exe  path=dist\win-unpacked\resources\runtime\vs\Lib\site-packages\bin\f2py.exe
+  • signing with signtool.exe  path=dist\win-unpacked\resources\runtime\vs\Lib\site-packages\bin\humanfriendly.exe
+  • signing with signtool.exe  path=dist\win-unpacked\resources\runtime\vs\Lib\site-packages\bin\numpy-config.exe
+  • signing with signtool.exe  path=dist\win-unpacked\resources\runtime\vs\Lib\site-packages\bin\isympy.exe
+  • signing with signtool.exe  path=dist\win-unpacked\resources\runtime\vs\Lib\site-packages\bin\onnxruntime_test.exe
+  • signing with signtool.exe  path=dist\win-unpacked\resources\runtime\ffmpeg\ffmpeg.exe
+  • signing with signtool.exe  path=dist\win-unpacked\resources\runtime\ffmpeg\ffprobe.exe
+  • signing with signtool.exe  path=dist\win-unpacked\7krh Studio.exe
+  • building        target=nsis file=dist\7krh-Studio-Setup-0.3.3.exe archs=x64 oneClick=false perMachine=true
+  • downloaded      label=nsis-3.0.4.1.7z progress=100%
+  • downloaded      label=7zip-win-x64.tar.gz progress=100%
+  • signing with signtool.exe  path=dist\win-unpacked\resources\elevate.exe
+  • downloaded      label=nsis-resources-3.4.1.7z progress=100%
+  • signing with signtool.exe  path=dist\7krh-Studio-Setup-0.3.3.__uninstaller.exe
+  • signing with signtool.exe  path=dist\7krh-Studio-Setup-0.3.3.exe
+     358.8 MB  7krh-Studio-Setup-0.3.3.exe
+       0.0 MB  builder-debug.yml
+       0.0 MB  latest.yml
