@@ -93,7 +93,7 @@ window.I18N = {
     /* projects */
     new_project: 'New project', open_project: 'Open project…', tm_tiktok: 'TikTok 60 fps', tm_reels: 'Reels / Shorts', tm_youtube: 'YouTube 1080p', tm_youtube60: 'YouTube 60 fps', tm_4k: 'YouTube 4K', tm_insta: 'Instagram post', tm_square: 'Square',
     /* queue */
-    q_empty: 'No exports yet. Finished files show up here.', q_waiting: 'Waiting', q_ai: 'AI processing', q_encode: 'Encoding', q_render: 'Rendering the montage', q_platform: 'Preparing for the platform', q_verify: 'Checking the file',
+    q_empty: 'No exports yet. Finished files show up here.', q_waiting: 'Waiting', q_ai: 'AI processing', q_encode: 'Encoding', q_render: 'Rendering the montage', q_platform: 'Preparing for the platform', q_verify: 'Checking the file', q_fallback: '{a} failed on this PC — the export is running again on DirectML.', q_on_dml: 'DirectML (fallback)',
     q_done: 'Done', q_err: 'Failed', q_cancel: 'Cancelled', q_eta: 'left', q_fps: 'fps', q_took: 'took', q_verified: 'Checked: plays to the end, {d} s, {a}.', with_audio: 'with sound', no_audio: 'no sound',
     toast_done: 'Export finished', toast_queued: 'Added to exports: {n}', cancel: 'Cancel', play: 'Play', open_folder: 'Show in folder', open_system: 'Open in Windows player', pv_err: 'This file could not be played here. Try "Show in folder".',
     /* settings */
@@ -202,7 +202,7 @@ window.I18N = {
     aud_add: 'إضافة صوت', aud_sub: 'تنقية الكلام وضبط المستوى والتلاشي وتوحيد مستوى الصوت والتحويل — من ملفات الصوت أو صوت الفيديو.', aud_drop: 'اسحب ملفات الصوت أو الفيديو إلى هنا',
     aud_denoise: 'إزالة الضوضاء', aud_fmt: 'الصيغة', aud_norm: 'توحيد مستوى الصوت', aud_norm_sub: '−14 LUFS، الذروة −1.5 dB', aud_go: 'معالجة الكل', aud_noaudio: 'لا يوجد صوت في {n}.', remove: 'إزالة',
     new_project: 'مشروع جديد', open_project: 'فتح مشروع…', tm_tiktok: 'تيك توك 60 إطار', tm_reels: 'Reels / Shorts', tm_youtube: 'يوتيوب 1080p', tm_youtube60: 'يوتيوب 60 إطار', tm_4k: 'يوتيوب 4K', tm_insta: 'منشور إنستغرام', tm_square: 'مربع',
-    q_empty: 'لا توجد تصديرات بعد. تظهر الملفات الجاهزة هنا.', q_waiting: 'في الانتظار', q_ai: 'معالجة بالذكاء الاصطناعي', q_encode: 'ترميز', q_render: 'تجهيز المونتاج', q_platform: 'تجهيز للمنصة', q_verify: 'فحص الملف',
+    q_empty: 'لا توجد تصديرات بعد. تظهر الملفات الجاهزة هنا.', q_waiting: 'في الانتظار', q_ai: 'معالجة بالذكاء الاصطناعي', q_encode: 'ترميز', q_render: 'تجهيز المونتاج', q_platform: 'تجهيز للمنصة', q_verify: 'فحص الملف', q_fallback: 'فشل {a} على هذا الجهاز — يُعاد التصدير تلقائيًا على DirectML.', q_on_dml: 'DirectML (بديل)',
     q_done: 'تم', q_err: 'فشل', q_cancel: 'أُلغي', q_eta: 'متبقٍ', q_fps: 'إطار/ث', q_took: 'استغرق', q_verified: 'فُحص: يعمل حتى النهاية، {d} ث، {a}.', with_audio: 'مع الصوت', no_audio: 'بدون صوت',
     toast_done: 'انتهى التصدير', toast_queued: 'أُضيف إلى التصديرات: {n}', cancel: 'إلغاء', play: 'تشغيل', open_folder: 'عرض في المجلد', open_system: 'فتح بمشغّل ويندوز', pv_err: 'تعذّر تشغيل الملف هنا. جرّب «عرض في المجلد».',
     s_title: 'الإعدادات', s_general: 'عام', s_lang: 'اللغة', s_out: 'مجلد التصدير', s_perf: 'كرت الشاشة والأداء',

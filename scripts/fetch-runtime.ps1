@@ -66,6 +66,13 @@ if (-not (Test-Path "$vs\Lib\site-packages\onnxruntime")) {
   if ($LASTEXITCODE -ne 0) { throw 'pip failed' }
 }
 
+# vs-mlrt's TensorRT-RTX backend reads the model with the "onnx" package before building its engine
+if (-not (Test-Path "$vs\Lib\site-packages\onnx")) {
+  & python -m pip install --disable-pip-version-check --no-compile --target "$vs\Lib\site-packages" --only-binary=:all: --python-version 3.12 --platform win_amd64 --no-deps `
+    'onnx==1.17.0' 'protobuf>=5,<6'
+  if ($LASTEXITCODE -ne 0) { throw 'pip onnx failed' }
+}
+
 # ---------------------------------------------------------------- VapourSynth plugins
 $plug = Join-Path $rt 'vs-plugins'
 New-Item -ItemType Directory -Force $plug | Out-Null

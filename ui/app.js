@@ -248,6 +248,7 @@
     const st = el.querySelector('.st'); st.innerHTML = '';
     const add = (txt, ltr) => st.appendChild(h(ltr ? 'span' : 'em', { style: 'font-style:normal', text: txt }));
     if (j.state === 'queued') add(t('q_waiting'));
+    if (j.fallback && j.state !== 'error') add(t('q_on_dml'));
     else if (j.state === 'run') {
       add(t('q_' + (j.phase || 'encode')) + (j.steps > 1 ? ` (${j.step}/${j.steps})` : ''));
       add(Math.round((j.frac || 0) * 100) + '%', 1);
@@ -308,6 +309,7 @@
     else if (ev.type === 'progress') { j.state = 'run'; j.frac = ev.frac; if (ev.fps != null) j.fps = ev.fps; if (ev.ms != null) j.ms = ev.ms; if (ev.eta !== undefined) j.eta = ev.eta; }
     else if (ev.type === 'phase') { j.phase = ev.phase; j.step = ev.step || j.step; j.steps = ev.steps || j.steps; }
     else if (ev.type === 'done') { Object.assign(j, { state: 'done', out: ev.out, size: ev.size, secs: ev.secs, expect: ev.expect, verify: ev.verify, encoder: ev.encoder }); App.toast(t('toast_done') + ' — ' + j.name, 'ok'); saveHist(j); }
+    else if (ev.type === 'fallback') { Object.assign(j, { state: 'queued', frac: 0, fallback: ev.from }); App.toast(t('q_fallback', { a: { trt: 'TensorRT', ncnn: 'Vulkan' }[ev.from] || ev.from }), 'err', 9000); }
     else if (ev.type === 'error') Object.assign(j, { state: 'error', err: ev.err, code: ev.code, log: ev.log, cancelled: ev.cancelled });
     qRender(ev.id);
     document.dispatchEvent(new CustomEvent('jobev', { detail: ev }));

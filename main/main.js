@@ -180,11 +180,11 @@ let jid = 0;
 const LOGS = () => path.join(app.getPath('documents'), '7krh Studio', 'logs');
 const stamp = () => new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
-async function context(tmp) {
+async function context(tmp, backend) {
   const c = await gpu.caps(UD());
   const s = readSettings();
   const dev = gpu.device(c, s);
-  const be = s.upBackend === 'auto' || !s.upBackend ? (bench.bestBackend(UD()) || 'ort') : s.upBackend;
+  const be = backend || (s.upBackend === 'auto' || !s.upBackend ? (bench.bestBackend(UD()) || 'ort') : s.upBackend);
   return { c, s, dev, caps: { encoders: c.encoders, gpu: dev.dml, dev, upBackend: be, paths: rt.paths(), tmp, engines: path.join(UD(), 'engines'), ffmpegMajor: c.ffmpegMajor, filters: c.filters } };
 }
 function lwiFor(input) {
@@ -201,7 +201,7 @@ const verifyStep = (file, expect, audio) => ({ kind: 'verify', file, expectDur: 
 
 /* builds a full plan for any job type (also used for the live summary) */
 async function makePlan(req, tmp) {
-  const { s, caps, dev } = await context(tmp);
+  const { s, caps, dev } = await context(tmp, req._backend);
   const plat = { platform: req.platform || 'self', fx: req.fx || 'auto', tech: req.tech || 'krypton' };
   if (req.type === 'copy') {
     const info = req.info;
@@ -264,8 +264,9 @@ function pump() {
   const { id, req } = queue.shift();
   const tmp = media.tmpDir('job' + id + '-' + Date.now());
   const t0 = Date.now();
+  let plan = null;
   (async () => {
-    const plan = await makePlan(req, tmp);
+    plan = await makePlan(req, tmp);
     const j = new Job(id, plan, ev => send('job:event', ev), path.join(LOGS(), `export-${stamp()}-${id}.txt`), { platform, verify: media.verifyOutput });
     running.set(id, { job: j, tmp });
     send('job:event', { id, type: 'start', expect: plan.expect, encoder: plan.encoder, method: plan.method, device: plan.device && plan.device.name, up: plan.up, fg: plan.fg });
@@ -275,6 +276,13 @@ function pump() {
     send('job:event', { id, type: 'done', out, size, secs: (Date.now() - t0) / 1000, expect: plan.expect, encoder: plan.encoder, verify: r.verify, method: plan.method });
   })().catch(err => {
     const j = running.get(id);
+    // the AI engine itself failed (e.g. TensorRT on this PC): run the job again once on DirectML, and say so
+    const be = plan && plan.up && plan.up.backend;
+    if (be && be !== 'ort' && !req._backend && !(j && j.job.cancelled) && /vsmlrt|tensorrt|trt|ncnn|onnx|Backend|inference|Script evaluation failed/i.test(String(err.message))) {
+      queue.unshift({ id, req: { ...req, _backend: 'ort' } });
+      send('job:event', { id, type: 'fallback', from: be, to: 'ort', reason: String(err.message).split('\n').filter(l => /Error|error:/.test(l)).slice(-1)[0] || '' });
+      return;
+    }
     send('job:event', { id, type: 'error', err: String(err.message || err), code: err.code, cancelled: !!(j && j.job.cancelled), log: j ? j.job.log.slice(-40).join('\n') : '' });
     // a cancelled or failed job never leaves a half-written file behind
     const out = req.type === 'enhance' ? req.opts.outPath : req.outPath;
@@ -287,7 +295,11 @@ handle('job:cancel', async id => {
   const r = running.get(id); if (r) r.job.cancel(); return true;
 });
 handle('job:preview', async (opts, info, t) => {
-  const { caps } = await context(media.tmpDir('prev' + Date.now()));
+  try { return await previewOnce(opts, info, t, null); }
+  catch (e) { if (/vsmlrt|tensorrt|trt|ncnn|onnx|Script evaluation failed/i.test(String(e.message))) return previewOnce(opts, info, t, 'ort'); throw e; }
+});
+async function previewOnce(opts, info, t, backend) {
+  const { caps } = await context(media.tmpDir('prev' + Date.now()), backend);
   const tmp = caps.tmp;
   const after = path.join(tmp, 'after.png');
   const plan = pipeline.buildPlan({ ...opts, outPath: after, preview: true, trim: { start: t, end: t + 1 } }, info, { ...caps, lwi: lwiFor(opts.input) });
@@ -297,7 +309,7 @@ handle('job:preview', async (opts, info, t) => {
   await j.run(tmp);
   await before;
   return { before: path.join(tmp, 'before.png'), after, secs: (Date.now() - t0) / 1000, plan: { up: plan.up, fg: plan.fg, w: plan.expect.w, h: plan.expect.h } };
-});
+}
 
 /* ---------------------------------------------------------------- images */
 handle('img:analyze', async src => { const s = readSettings(); const d = gpu.device(await gpu.caps(UD()), s); return img.call('analyze', { src, device: d.dml }, null, { gpuOnly: s.gpuOnly }); });
